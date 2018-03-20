@@ -1,0 +1,31 @@
+{
+	"folders":
+	[
+		{
+			"file_exclude_patterns":
+			[
+				"*.dll",
+				"*.meta",
+				"*.asset",
+				"*.unity",
+				"*.ttf",
+				"*.pdf",
+				"*.unitypackage",
+				"*.mdb",
+				"*.prefab",
+				"*.ogg",
+				"*.controller",
+				"*.anim",
+				"*.jar"
+			],
+			"folder_exclude_patterns":
+			[
+				"Library",
+				"StreamingAssets",
+				"Temp",
+				".*"
+			],
+			"path": "."
+		},
+	]
+}

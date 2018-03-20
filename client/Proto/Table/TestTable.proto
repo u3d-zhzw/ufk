@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+message Address2
+{
+  optional string Line1 = 1;
+  optional string Line2 = 2;
+}
+
+message Person2
+{
+  optional int32 Id = 1;
+  optional string Name = 2;
+  optional Address2 Address = 3;
+}
