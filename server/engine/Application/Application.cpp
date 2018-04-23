@@ -62,7 +62,7 @@ conn_eventcb(struct bufferevent *bev, short events, void *user_data)
 }
 
 int
-maint(int argc, char** argv)
+main(int argc, char** argv)
 {
     struct event_base *base;
     struct evconnlistener *listener;
@@ -86,7 +86,6 @@ maint(int argc, char** argv)
 
     evconnlistener_free(listener);
     event_base_free(base);
-
 
     return 0;
 }
