@@ -68,6 +68,12 @@ main(int argc, char** argv)
     struct evconnlistener *listener;
     struct sockaddr_in sin;
 
+    base = event_base_new();
+    if (!base) {
+        fprintf(stderr, "Could not initialize libevent!\n");
+        return 1;
+    }
+
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
     sin.sin_port = htons(PORT);
