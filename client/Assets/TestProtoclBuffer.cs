@@ -4,6 +4,8 @@ using System.IO;
 using UnityEngine;
 using ProtoBuf;
 using ProtoBuf.Meta;
+using System.Net;
+using System.Net.Sockets;
 
 public class TestProtoclBuffer : MonoBehaviour
 {
@@ -24,12 +26,61 @@ public class TestProtoclBuffer : MonoBehaviour
 		public string Line2 {get;set;}
 	}
 
+    private TCPConnection conn = null;
+
+
 	public void Awake()
 	{
-		this.Run();
+    //    int i = 3;
+        TestNet();
 	}
 
-	public void Run()
+    public void OnDestroy()
+    {
+        if (this.conn != null)
+        {
+            this.conn.Disconnect();
+        }
+    }
+
+    public void TestNet()
+    {
+        var person = new Person
+        {
+            Id = 12345,
+            Name = "Fred",
+            Address = new Address
+            {
+                Line1 = "Flat 1",
+                Line2 = "The Meadows"
+            }
+        };
+
+        byte[] data = null;
+        using (MemoryStream memStream = new MemoryStream())
+        {
+            Serializer.Serialize(memStream, person);
+            data = memStream.ToArray();
+        }
+
+        if (data == null || data.Length <= 0)
+        {
+            Debug.LogError("data is empty");
+            return ;
+        }
+
+        this.conn = new TCPConnection();
+        this.conn.Connect("47.106.66.32", 56789, (SocketState st, string msg, System.Object userdata) =>
+        {
+            Debug.LogError("callback");
+            if (st == SocketState.CONNECTED)
+            {
+                this.conn.Send(data);
+            }
+        }, null);
+    }
+
+    public void TestProto()
 	{
 		var person = new Person {
 			Id = 12345, Name = "Fred",
@@ -67,4 +118,12 @@ public class TestProtoclBuffer : MonoBehaviour
 		//Debug.Log("Phone.Number:" + p.Phones.Number);
 		//Debug.Log("Phone.Type:" + p.Phones.Type);
 	}
+
+    private void Update()
+    {
+        if (this.conn != null)
+        {
+            this.conn.Update();
+        }
+    }
 }

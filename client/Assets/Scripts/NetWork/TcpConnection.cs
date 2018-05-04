@@ -13,6 +13,16 @@ using System.Diagnostics;
 #endif
 
 
+public enum SocketState
+{
+    NONE,
+    CONNECTED,
+    CONNECTING,
+    CLOSED,
+    ERROR,
+    TIME_OUT,
+}
+
 public class TCPConnection : TcpClient
 {
     private class SocketStateChangedEventArgs
@@ -21,16 +31,15 @@ public class TCPConnection : TcpClient
         public string msg;
     }
 
-    public enum SocketState
+    private class SocketStateListenerArgs
     {
-        NONE,
-        CONNECTED,
-        CONNECTING,
-        CLOSED,
-        ERROR,
-        TIME_OUT,
+        public SocketState state;
+        public bool once;
+        public SocketStateChangeDelegate del;
+        public System.Object userdata;
     }
 
+    public delegate void SocketStateChangeDelegate(SocketState state, string msg, System.Object userdata);
 
 
     // 10秒超时连接
@@ -50,17 +59,54 @@ public class TCPConnection : TcpClient
 
     public SocketState State = SocketState.NONE;   //current network state
 
-    protected SocketStateChangeDelegate SocketStateChangedEvent;
+    public SocketStateChangeDelegate SocketStateChangedEvent;
 
-    public delegate void SocketStateChangeDelegate(SocketState state, string msg);
+    Dictionary<SocketState, LinkedList<SocketStateListenerArgs>> dictNetStateListener = new Dictionary<SocketState, LinkedList<SocketStateListenerArgs>>();
+
+    public void AddStatusListener(SocketState st, SocketStateChangeDelegate cb, System.Object userdata = null)
+    {
+        this.AddStatusListener(st, false, cb, userdata);
+    }
+
+    public void AddStatusListener(SocketState st, bool once, SocketStateChangeDelegate cb, System.Object userdata = null)
+    {
+        // todo: pool
+        SocketStateListenerArgs arg = AllocStatusArgs();
+        arg.state = st;
+        arg.once = once;
+        arg.userdata = userdata;
+        arg.del = cb;
+
+        LinkedList<SocketStateListenerArgs> list = null;
+        if(!this.dictNetStateListener.ContainsKey(st))
+        {
+            list = new LinkedList<SocketStateListenerArgs>();
+            this.dictNetStateListener[st] = list;
+        }
+
+        list.AddLast(arg);
+    }
+
+    private SocketStateListenerArgs AllocStatusArgs()
+    {
+        return new SocketStateListenerArgs();
+    }
+
+    private void FreeStatusArgs(SocketStateListenerArgs args)
+    {
+
+    }
+
     private Queue<SocketStateChangedEventArgs> socketChangeQueue = new Queue<SocketStateChangedEventArgs>();
     private Queue<SocketStateChangedEventArgs> socketChangeBuffer = new Queue<SocketStateChangedEventArgs>();
     //
 
-    public TCPConnection() {
+    public TCPConnection()
+        : base()
+    {
     }
 
-    public virtual void Connect (string adr, int port, System.Action cb) 
+    public virtual void Connect (string adr, int port, SocketStateChangeDelegate callback = null, System.Object userdata = null) 
     {
         if (State == SocketState.CONNECTING)
         {
@@ -69,49 +115,33 @@ public class TCPConnection : TcpClient
             return;
         }
 
-        this.Dispose ();
+        this.AddStatusListener(SocketState.CONNECTED, true, callback, null);
 
         ip = adr;   //保存地址
         this.port = port;
    
         if (threadConnect == null) 
         {
-            threadConnect = new Thread(CbConnectCommon);
+            threadConnect = new Thread(ThreadConnectCommon);
             threadConnect.IsBackground = true;
         }
 
         threadConnect.Start();
-
         this.SocketStateChanged(SocketState.CONNECTING, "");
     }
 
-    public void Dispose()
+    public void Disconnect()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
+        this.Close();
     }
 
-    protected override void Dispose(bool disposin) {
-
+    protected override void Dispose(bool disposing)
+    {
         this.SocketStateChanged(SocketState.CLOSED, "");
 
         if (threadConnect != null && threadConnect.IsAlive)
         {
             threadConnect.Abort ();
-        }
-
-        if (this.Connected)
-        {
-            try {
-                this.Close ();
-                if (networkStream != null)
-                {
-                    networkStream.Flush();
-                    networkStream.Close ();
-                }
-            } catch (Exception) {
-                Debug.LogWarning ("TCPSocket Disconnect error");
-            }
         }
 
         if (threadSend != null && threadRead.IsAlive)
@@ -130,20 +160,20 @@ public class TCPConnection : TcpClient
         this.threadSend = null; 
         this.threadRead = null;
         this.networkStream = null;
+
+        base.Dispose(disposing);
     }
-
-
 
     private void ThreadConnectTimeOut(System.Object source, ElapsedEventArgs e)
     {
         if (!this.Connected)
         {
             this.SocketStateChanged(SocketState.TIME_OUT, "connection timed out");
-            this.Dispose();
+            this.Disconnect();
         }
     }
 
-    private void CbConnectCommon()
+    private void ThreadConnectCommon()
     {
         Debug.Log("CbConnectCommon");
         IPAddress[] addrs = Dns.GetHostAddresses(ip);
@@ -158,6 +188,11 @@ public class TCPConnection : TcpClient
         {
             try
             {
+                if (!result.IsCompleted)
+                {
+                    
+                }
+
                 this.EndConnect(result);
                 networkStream = this.GetStream();
                 this.SocketStateChanged(SocketState.CONNECTED, "");
@@ -178,14 +213,13 @@ public class TCPConnection : TcpClient
 
         }), this);
 
-        if (timeoutEvent.WaitOne(CONNECT_TIME_OUT, false))
+        timeoutEvent.WaitOne(CONNECT_TIME_OUT, false);
+
+        if (State != SocketState.CONNECTED && State != SocketState.ERROR)
         {
-            if (State != SocketState.CONNECTED && State != SocketState.ERROR)
-            {
-                this.SocketStateChanged(SocketState.TIME_OUT, "connect time out");
-                this.Dispose();
-                return;
-            }
+            this.SocketStateChanged(SocketState.TIME_OUT, "connect time out");
+            this.Disconnect();
+            return;
         }
 
         threadRead = new Thread(ThreadRead);
@@ -194,8 +228,8 @@ public class TCPConnection : TcpClient
 
         // send thread
         threadSend = new Thread(ThreadSend);
-        threadRead.IsBackground = true;
-        threadRead.Start();
+        threadSend.IsBackground = true;
+        threadSend.Start();
     }
 
     private void ThreadSend()
@@ -275,9 +309,28 @@ public class TCPConnection : TcpClient
                 args = socketChangeQueue.Dequeue();
             }
 
-            if (SocketStateChangedEvent != null)
+            if (this.dictNetStateListener.ContainsKey(args.state))
             {
-                SocketStateChangedEvent(args.state, args.msg);
+                LinkedList<SocketStateListenerArgs> list = this.dictNetStateListener[args.state];
+                Debug.LogError("before " + list.Count);
+                LinkedListNode<SocketStateListenerArgs> itr = list.First;
+                while (itr != null)
+                {
+                    SocketStateChangeDelegate del = itr.Value.del;
+                    if (del != null)
+                    {
+                        del(args.state, args.msg, itr.Value.userdata);
+                    }
+
+                    if (itr.Value.once)
+                    {
+                        list.Remove(itr);
+                    }
+                    itr = itr.Next;
+
+                }
+
+                Debug.LogError("after " + list.Count);
             }
 
             this.FreeEventArgs(args);
