@@ -10,7 +10,7 @@ DEPLOY_PATH=${BASE_PATH}/Deploy
 # cmake 2.6 or above
 # gcc 4.8 or above
 
-sudo rm -rf ${BUILD_PATH}
+rm -rf ${BUILD_PATH}
 mkdir ${BUILD_PATH}
 cd ${BUILD_PATH}
 cmake ..
