@@ -4,7 +4,7 @@ BASE_PATH=$(cd `dirname $0`; pwd)
 BUILD_PATH=${BASE_PATH}/build
 
 LIB_OUTPUT_PATH=${BUILD_PATH}/lib
-DEPLOY_PATH=${BASE_PATH}/Deploy
+DEPLOY_PATH=${BASE_PATH}/deploy
 
 # require
 # cmake 2.6 or above

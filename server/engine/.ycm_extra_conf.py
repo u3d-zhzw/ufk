@@ -39,6 +39,7 @@ flags = [
     '-I/usr/include',
     '-I/usr/local/include',
     '-I./3rdParty/include',
+    '-I./pb',
 ]
 
 

@@ -1,8 +1,10 @@
 # !bin/sh
 
-PROTO_BIN=./tools/protoc-3.4.0-linux-x86_64/bin/protoc
+BASEPATH=$(cd `dirname $0`; pwd)
 
-PROTO_SRC=./trunk/proto
-CPP_SRC=./trunk/cpp
+PROTO_BIN=$BASEPATH/../tools/protoc-3.4.0-linux-x86_64/bin/protoc
 
-$PROTO_BIN -I=$PROTO_SRC --cpp_out=$CPP_SRC $PROTO_SRC/pkg_vs_pb.proto
+PROTO_SRC=./Proto
+CPP_SRC=./cpp
+
+$PROTO_BIN -I=$PROTO_SRC --cpp_out=$CPP_SRC $PROTO_SRC/Person.proto
