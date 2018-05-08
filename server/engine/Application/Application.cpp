@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h> 
+#include<unistd.h>
 
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
@@ -8,11 +9,14 @@
 #include <event2/util.h>
 #include <event2/event.h>
 
+#include "pb/Person.pb.h"
+
 static const char MESSAGE[] = "Hello, World!\n";
 
-static const int PORT = 9995;
+static const int PORT = 56789;
 static void listener_cb(struct evconnlistener *, evutil_socket_t,
             struct sockaddr *, int socklen, void *);
+static void conn_readcb(struct bufferevent *bev, void *ctx);
 static void conn_writecb(struct bufferevent *, void *);
 static void conn_eventcb(struct bufferevent *, short, void *);
 static void signal_cb(evutil_socket_t, short, void *);
@@ -30,21 +34,44 @@ listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
         event_base_loopbreak(base);
         return;
     }
-    bufferevent_setcb(bev, NULL, conn_writecb, conn_eventcb, NULL);
-    bufferevent_enable(bev, EV_WRITE);
-    bufferevent_disable(bev, EV_READ);
 
-    bufferevent_write(bev, MESSAGE, strlen(MESSAGE));
+    bufferevent_setcb(bev, conn_readcb, conn_writecb, conn_eventcb, NULL);
+    bufferevent_enable(bev, EV_READ);
+    //bufferevent_enable(bev, EV_WRITE);
+    //bufferevent_disable(bev, EV_READ);
+    
+    int msgLen = strlen(MESSAGE);
+    fprintf(stderr, "msgLen:%d\n", msgLen);
+    bufferevent_write(bev, MESSAGE, msgLen);
+}
+
+static void
+conn_readcb(struct bufferevent *bev, void *ctx)
+{
+    struct evbuffer *input = bufferevent_get_input(bev);
+    size_t len = evbuffer_get_length(input);
+    fprintf(stderr, "rec len = %ld", len);
+
+    char data[128];
+    int rbLen = evbuffer_remove(input, data, 128);
+    fprintf(stderr, "rbLen:%d\n", rbLen);
+    
+    Person person;
+    person.ParseFromArray(data, rbLen);
+    fprintf(stderr, "Id:%d\n", person.id());
+    fprintf(stderr, "Name:%s\n", person.name().c_str());
+    fprintf(stderr, "Address.line1:%s\n", person.address().line1().c_str());
+    fprintf(stderr, "Address.line2:%s\n", person.address().line2().c_str());
 }
 
 static void
 conn_writecb(struct bufferevent *bev, void *user_data)
 {
-    struct evbuffer *output = bufferevent_get_output(bev);
-    if (evbuffer_get_length(output) == 0) {
+   // struct evbuffer *output = bufferevent_get_output(bev);
+//    if (evbuffer_get_length(output) == 0) {
         printf("flushed answer\n");
-        bufferevent_free(bev);
-    }
+ //       bufferevent_free(bev);
+  //  }
 }
 
 static void
@@ -64,6 +91,10 @@ conn_eventcb(struct bufferevent *bev, short events, void *user_data)
 int
 main(int argc, char** argv)
 {
+    printf("---\n");
+    fprintf(stderr, "pid:%d\n", (int)getpid());
+    printf("---\n");
+
     struct event_base *base;
     struct evconnlistener *listener;
     struct sockaddr_in sin;
