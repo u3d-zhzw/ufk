@@ -49,6 +49,7 @@ public class TCPConnection : TcpClient
     private Thread threadSend;
     private Thread threadRead;
     private Thread threadConnect;
+    private bool active;
 
     private ManualResetEvent timeoutEvent = new ManualResetEvent(false);
 
@@ -117,9 +118,10 @@ public class TCPConnection : TcpClient
 
         this.AddStatusListener(SocketState.CONNECTED, true, callback, null);
 
-        ip = adr;   //保存地址
+        this.ip = adr;   //保存地址
         this.port = port;
-   
+        this.active = true;
+        
         if (threadConnect == null) 
         {
             threadConnect = new Thread(ThreadConnectCommon);
@@ -132,11 +134,14 @@ public class TCPConnection : TcpClient
 
     public void Disconnect()
     {
+        Debug.LogError("disconnect");
         this.Close();
     }
 
     protected override void Dispose(bool disposing)
     {
+        this.active = false;
+
         this.SocketStateChanged(SocketState.CLOSED, "");
 
         if (threadConnect != null && threadConnect.IsAlive)
@@ -222,6 +227,12 @@ public class TCPConnection : TcpClient
             return;
         }
 
+        if (!this.active)
+        {
+            this.Disconnect();
+            return; 
+        }
+
         threadRead = new Thread(ThreadRead);
         threadRead.IsBackground = true;
         threadRead.Start();
@@ -234,7 +245,7 @@ public class TCPConnection : TcpClient
 
     private void ThreadSend()
     {
-        while(true)
+        while(this.active)
         {
             if (State != SocketState.CONNECTED)
             {
@@ -260,6 +271,8 @@ public class TCPConnection : TcpClient
                     networkStream = this.GetStream();
                     networkStream.Write(data, 0, data.Length);
                     networkStream.Flush();
+
+                    Debug.Log("send done len:" + data.Length);
                 }
                 catch (Exception e)
                 {
@@ -270,30 +283,27 @@ public class TCPConnection : TcpClient
     }
 
     private void ThreadRead () {
-        MemoryStream memoryStream;
-        NetworkStream stream = networkStream;
-        byte[] arrByte;
-        while (true) {
+        while (this.active) {
             if (State != SocketState.CONNECTED || !this.Connected) {
                 this.SocketStateChanged(SocketState.ERROR, "TCPSocket Read-> socket DisconnecteDebug.");
                 break;
             }
 
-            if (stream.CanRead)
+            if (networkStream != null 
+                && networkStream.CanRead 
+                && networkStream.DataAvailable)
             {
-                try
-                {
-                    //TODO:
-                }
-                catch (Exception e)
-                {
-                    Debug.Log("TcpSocket Read" + e.ToString());
-                    return;    
-                } 
-               
-            } else {
-                this.SocketStateChanged(SocketState.ERROR, "TCPSocket Read->networkStream can not be reaDebug.");
-                break;
+                    try
+                    {
+                        byte[] data = new byte[128];
+                        int len = networkStream.Read(data, 0, 128);
+                        Debug.Log("rec data len = " + len);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.Log("TcpSocket Read" + e.ToString());
+                        return;
+                    }
             }
         }
     }
