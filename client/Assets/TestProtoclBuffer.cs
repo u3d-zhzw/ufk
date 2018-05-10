@@ -26,7 +26,7 @@ public class TestProtoclBuffer : MonoBehaviour
 		public string Line2 {get;set;}
 	}
 
-    private TCPConnection conn = null;
+    private HallConnection conn = null;
 
 
 	public void Awake()
@@ -69,14 +69,11 @@ public class TestProtoclBuffer : MonoBehaviour
             return ;
         }
 
-        this.conn = new TCPConnection();
-        this.conn.Connect("47.106.66.32", 56789, (SocketState st, string msg, System.Object userdata) =>
+        this.conn = new HallConnection();
+        this.conn.Connect("47.106.66.32", 56789, (System.Object userdata) =>
         {
             Debug.LogError("callback");
-            if (st == SocketState.CONNECTED)
-            {
-                this.conn.Send(data);
-            }
+            this.conn.Send(data);
         }, null);
     }
 
