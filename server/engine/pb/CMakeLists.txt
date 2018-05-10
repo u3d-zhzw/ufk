@@ -11,5 +11,5 @@ LINK_DIRECTORIES(${PROJ_ROOT}/3rdParty/lib)
 
 ADD_LIBRARY(pb STATIC ${SRC})
 
-TARGET_LINK_LIBRARIES(pb protobuf)
+TARGET_LINK_LIBRARIES(pb protobuf-lite)
 
