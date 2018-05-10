@@ -1,5 +1,7 @@
 syntax = "proto2";
 
+option optimize_for = LITE_RUNTIME;
+
 message Address
 {
   optional string Line1 = 1;
