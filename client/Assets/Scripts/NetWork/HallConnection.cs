@@ -9,8 +9,17 @@ using System.Text;
 class HallConnection
     : TCPConnection
 {
+
+    public delegate void NetPacketHandlerEvent(NetPacket pkg);
+
     private System.Action<System.Object> tmpCallback = null;
     private System.Object tmpuserData = null;
+
+    public event NetPacketHandlerEvent NetPacketHander = null;
+
+    private uint remainSize = 0;
+    private byte[] packetBuffer = null;
+
 
     public void Connect(string ip, int port, System.Action<System.Object> successCallback = null, System.Object userdata = null)
     {
@@ -74,6 +83,30 @@ class HallConnection
 
     public override void Receive(NetworkStream stream)
     {
-        Debug.Log("rec msg");
+        long len = stream.Length;
+        if (len < NetPacket.PACKET_SIZE)
+        {
+            return;
+        }
+
+        byte[] headBuffer = new byte[NetPacket.PACKET_SIZE];
+        int readSize = stream.Read(headBuffer, 0, (int)NetPacket.PACKET_SIZE);
+        if (readSize < NetPacket.PACKET_SIZE)
+        {
+            throw new Exception("包头长度错误");
+        }
+
+        uint packSize = BitConverter.ToUInt32(headBuffer, (int)NetPacket.PACKET_SIZE_OFFSET);
+        this.remainSize = packSize - NetPacket.PACKET_SIZE;
+        if (stream.DataAvailable && this.remainSize > stream.Length)
+        {
+            return;
+        }
+
+        
+        
+        
+
+
     }
 }
