@@ -7,4 +7,4 @@ ADD_SUBDIRECTORY(pb)
 ADD_SUBDIRECTORY(network)
 
 # excecute
-ADD_SUBDIRECTORY(Application)
+ADD_SUBDIRECTORY(application)

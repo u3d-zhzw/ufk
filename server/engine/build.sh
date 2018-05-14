@@ -18,7 +18,7 @@ make -j 4
 
 # TODO: check directionary existed
 # TODO: copy list
-APPSRV_OUTPUT=${BUILD_PATH}/Application/appSrv
+APPSRV_OUTPUT=${BUILD_PATH}/application/appSrv
 cp -vf ${APPSRV_OUTPUT} ${DEPLOY_PATH}/servers/bin/
 #cd ${LIB_OUTPUT_PATH}/* ${DEPLOY_PATH}/lib
 
