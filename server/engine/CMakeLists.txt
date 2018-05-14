@@ -4,6 +4,7 @@ PROJECT(UFK_SERVER)
 
 # libs
 ADD_SUBDIRECTORY(pb)
+ADD_SUBDIRECTORY(network)
 
 # excecute
 ADD_SUBDIRECTORY(Application)

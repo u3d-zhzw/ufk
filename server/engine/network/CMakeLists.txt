@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 
-PROJECT(appSrv)
+PROJECT(network)
 
 SET(PROJ_ROOT ${PROJECT_SOURCE_DIR}/..)
 
@@ -13,6 +13,4 @@ INCLUDE_DIRECTORIES(${PROJ_ROOT})
 INCLUDE_DIRECTORIES(${PROJ_ROOT}/3rdParty/include)
 LINK_DIRECTORIES(${PROJ_ROOT}/3rdParty/lib)
 
-ADD_EXECUTABLE(appSrv ${SRC})
-
-TARGET_LINK_LIBRARIES(appSrv network event rt pb)
+ADD_LIBRARY(network STATIC ${SRC})
