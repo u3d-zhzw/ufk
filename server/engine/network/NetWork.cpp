@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "NetWork.h"
 
 #include "pb/Person.pb.h"
@@ -50,6 +52,18 @@ void NetWork::Loop()
     event_base_loop(this->m_base, EVLOOP_NONBLOCK);
 }
 
+
+
+void NetWork::Send(SessionId id, void* data, size_t size)
+{
+    
+}
+
+void NetWork::Send(Session* pSession, void* data size_t size)
+{
+}
+
+
 void
 NetWork::listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
         struct sockaddr *sa, int socklen, void *user_data)
@@ -67,15 +81,20 @@ NetWork::listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
     bufferevent_setcb(bev, conn_readcb, conn_writecb, conn_eventcb, NULL);
     bufferevent_enable(bev, EV_READ);
+
+    
+
     //bufferevent_enable(bev, EV_WRITE);
     //bufferevent_disable(bev, EV_READ);
     
+    /*
     int msgLen = strlen(MESSAGE);
     fprintf(stderr, "msgLen:%d\n", msgLen);
     for (int i = 0, iMax = 10; i < iMax; ++i)
     {
         bufferevent_write(bev, MESSAGE, msgLen);
     }
+    */
 }
 
 void
@@ -110,12 +129,40 @@ NetWork::conn_writecb(struct bufferevent *bev, void *user_data)
 void
 NetWork::conn_eventcb(struct bufferevent *bev, short events, void *user_data)
 {
-    if (events & BEV_EVENT_EOF) {
+    if (events & BEV_EVENT_EOF) 
+    {
         printf("Connection closed.\n");
-    } else if (events & BEV_EVENT_ERROR) {
-        printf("Got an error on the connection: %s\n",
-                strerror(errno));/*XXX win32*/ }
+    } 
+    else if (events & BEV_EVENT_ERROR) 
+    {
+        printf("Got an error on the connection: %s\n", strerror(errno));
+    }
+    else if (events & BEV_EVENT_CONNECTED)//主动连接回调 
+    {
+        std::shared_ptr<Session> session = Session::MakeSession();
+        this->BindSession(session, bev);
+
+        printf("connected\n");
+    }
+
     /* None of the other events can happen here, since we haven't enabled
      *   * timeouts */
     bufferevent_free(bev);
+}
+
+NetWork::BindSession(std::shared_ptr<Session> session, struct bufferevent * bev)
+{
+    auto itr = this->m_mapSeesion.find(session);
+    if (itr != this->m_mapSession.end())
+    {
+        printf("重复绑定session\n");
+        return ;
+    }
+
+    this->m_mapSession->insert(std::pair<std::shared_ptr<Session>, struct bufferevent *>(session, bev)); 
+}
+
+NetWork::GetSession(SessionId id)
+{
+
 }
