@@ -1,27 +1,43 @@
-#include <stdio.h>
-#include <string.h>
-#include <errno.h> 
-#include<unistd.h>
 
-#include "network/NetWork.h"
+#include "application/Application.h"
 
-int
-main(int argc, char** argv)
+bool Application::Start()
 {
-    printf("---\n");
-    fprintf(stderr, "pid:%d\n", (int)getpid());
-    printf("---\n");
+    this->m_net = new NetWork();
+    this->m_net->Listen(56789);
 
-    NetWork net;
-    net.Listen(56789);
+    this->Loop();
+}
+
+void Application::Stop()
+{
+    if (this->m_net != NULL)
+    {
+        delete this->m_net;
+    }
+    this->m_net = NULL;
+}
+
+void Application::Loop()
+{
     while(true)
     {
-        net.Loop();
+        if (this->m_net != NULL)
+        {
+            this->m_net->Loop();
+        }
     }
-
-    return 0;
 }
 
 
+void Application::Send(ProtcolId main, ProtcolId sub, ::google::protobuf::MessageLite& msg)
+{
+    size_t size = msg.ByteSizeLong();
 
+    void* buff = malloc(size);
+    msg.SerializeToArray(buff, size);
 
+    this->m_net->Send();
+
+    free(buff);
+}

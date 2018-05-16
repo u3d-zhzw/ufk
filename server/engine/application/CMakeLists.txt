@@ -15,4 +15,4 @@ LINK_DIRECTORIES(${PROJ_ROOT}/3rdParty/lib)
 
 ADD_EXECUTABLE(appSrv ${SRC})
 
-TARGET_LINK_LIBRARIES(appSrv network event rt pb)
+TARGET_LINK_LIBRARIES(appSrv network common event rt pb)
