@@ -22,6 +22,8 @@ APPSRV_OUTPUT=${BUILD_PATH}/application/appSrv
 cp -vf ${APPSRV_OUTPUT} ${DEPLOY_PATH}/servers/bin/
 #cd ${LIB_OUTPUT_PATH}/* ${DEPLOY_PATH}/lib
 
+# todo: auto make test dir
+cp -vf ${BUILD_PATH}/test/TestNetPacket/testNetPacket ${DEPLOY_PATH}/test/TestNetPacket/
 
 
 
