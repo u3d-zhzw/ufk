@@ -40,6 +40,9 @@ flags = [
     '-I/usr/local/include',
     '-I./3rdParty/include',
     '-I./pb',
+    '-I./common',
+    '-I./application',
+    '-I./network',
 ]
 
 
