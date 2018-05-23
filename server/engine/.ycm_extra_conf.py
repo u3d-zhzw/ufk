@@ -38,6 +38,7 @@ flags = [
     'c++',
     '-I/usr/include',
     '-I/usr/local/include',
+    '-I./',
     '-I./3rdParty/include',
     '-I./pb',
     '-I./common',
