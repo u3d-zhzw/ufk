@@ -20,7 +20,7 @@ function copy
 #    cp ${LIB_OUTPUT_PATH}/* ${DEPLOY_PATH}/lib
 
     # todo: auto make test dir
-    cp -vf ${BUILD_PATH}/test/TestNetPacket/testNetPacket ${DEPLOY_PATH}/test/TestNetPacket/
+    cp -vf ${BUILD_PATH}/test/TestNetPacket/testNetPacket ${DEPLOY_PATH}/test/
 
 }
 

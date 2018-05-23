@@ -15,6 +15,7 @@ main()
     Timer t;
     t.create(0, 1000, RandPacket);
 
+    net.Start();
     net.Connect("127.0.0.1", 56789, NULL, NULL);
 
     getchar();

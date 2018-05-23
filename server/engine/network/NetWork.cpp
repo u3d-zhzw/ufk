@@ -6,6 +6,33 @@
 
 static const char MESSAGE[] = "Hello, World!\n";
 
+bool NetWork::Start()
+{
+    this->m_base = event_base_new();
+    if (!this->m_base) {
+        fprintf(stderr, "Could not initialize libevent!\n");
+        return false;
+    }
+
+    return true;
+}
+
+void NetWork::Stop()
+{
+    evconnlistener_free(this->m_listener);
+    if (this->m_base != NULL)
+    {
+        event_base_free(this->m_base);
+    }
+}
+
+void NetWork::Loop()
+{
+    event_base_loop(this->m_base, EVLOOP_NONBLOCK);
+}
+
+
+
 std::shared_ptr<Session> NetWork::Connect(string ip, int port, NetStatueDef cbStatus, NetReceiveDef cbRecv)
 {
     struct bufferevent* bev = bufferevent_socket_new(this->m_base, -1, BEV_OPT_CLOSE_ON_FREE);
@@ -56,31 +83,6 @@ void NetWork::Listen(int port, NetStatueDef cbStatus, NetReceiveDef cbRecv)
         fprintf(stderr, "Could not create a listener!\n");
         return ;
     }
-}
-
-bool NetWork::Start()
-{
-    this->m_base = event_base_new();
-    if (!this->m_base) {
-        fprintf(stderr, "Could not initialize libevent!\n");
-        return false;
-    }
-
-    return true;
-}
-
-void NetWork::Stop()
-{
-    evconnlistener_free(this->m_listener);
-    if (this->m_base != NULL)
-    {
-        event_base_free(this->m_base);
-    }
-}
-
-void NetWork::Loop()
-{
-    event_base_loop(this->m_base, EVLOOP_NONBLOCK);
 }
 
 void NetWork::Send(std::shared_ptr<Session> session, unsigned short id, ::google::protobuf::MessageLite* msg)
