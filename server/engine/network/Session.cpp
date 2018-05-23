@@ -1,16 +1,16 @@
 #include "Session.h"
 
-stasessionIdession_id = 1;
+SessionId gen_session_id = 1;
 
-Session* Session::MakeSession()
+std::shared_ptr<Session> Session::MakeSession()
 {
     std::shared_ptr<Session> session = std::make_shared<Session>();
-    pSession->id = gen_session_id;
+    session->id = gen_session_id;
     // todo: try to reuse sesionid
     // todo: thread safe
-    ++gen_session_id; 
+    ++gen_session_id;
 
-    return pSession;
+    return session;
 }
 
 

@@ -1,14 +1,12 @@
 #include <stdio.h>
 
 #include "common/Timer.h" 
-#include "application/Application.h"
+#include "network/NetWork.h"
 
-Application app;
-
+NetWork net; 
 void RandPacket()
 {
     printf("sdfsdf\n");
-app.Send();
 }
 
 int
@@ -17,7 +15,8 @@ main()
     Timer t;
     t.create(0, 1000, RandPacket);
 
-    app.Star();
+    net.Connect("127.0.0.1", 56789, NULL, NULL);
+
     getchar();
     return 0;
 }

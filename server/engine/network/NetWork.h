@@ -3,15 +3,18 @@
 
 #include <string>
 #include <unordered_map>
+#include <memory>
 
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
 #include <event2/listener.h>
 #include <event2/util.h>
 #include <event2/event.h>
+#include <google/protobuf/stubs/common.h>
+#include <google/protobuf/message_lite.h>
 
-
-
+#include "common/Defines.h"
+#include "network/Session.h"
 
 
 using namespace std;
@@ -19,10 +22,10 @@ using namespace std;
 class NetWork
 {
 public:
-    void Connect(string ip, int port);
-    void Listen(int port);
-    void Send(SessionId id, void* data, size_t size);
-    void Send(Session* pSession, void* data size_t size);
+    std::shared_ptr<Session> Connect(string ip, int port, NetStatueDef cbStatus, NetReceiveDef cbRecv);
+    void Listen(int port, NetStatueDef status_cb, NetReceiveDef recv_cb);
+
+    void Send(std::shared_ptr<Session> session, unsigned short id, ::google::protobuf::MessageLite* msg);
 
 public:
     bool Start();
@@ -39,12 +42,19 @@ private:
 
 private:
     void BindSession(std::shared_ptr<Session> session, struct bufferevent * bev);
+    void UnBindSession(std::shared_ptr<Session> session);
+    bool IsBind(std::shared_ptr<Session> session);
+    bool IsBind(struct bufferevent* bev);
 
 private:
     struct event_base* m_base;
     struct evconnlistener* m_listener;
 
-    std::unordered_map<std::shared_ptr<Session>, struct bufferevent *> m_mapSeesion;
+    std::unordered_map<std::shared_ptr<Session>, struct bufferevent *> m_mapSession;
+    std::unordered_map<struct bufferevent * , std::shared_ptr<Session>> m_mapBufEvt;
+
+    NetStatueDef m_cbNetStatus;
+    NetReceiveDef m_cbRecv;
 };
 
 #endif //__NETWORK_H

@@ -1,10 +1,13 @@
-
 #include "application/Application.h"
+
+using namespace std::placeholders;
 
 bool Application::Start()
 {
     this->m_net = new NetWork();
-    this->m_net->Listen(56789);
+
+    NetReceiveDef cbConnReceive = std::bind(&Application::ConnReceive, this, _1, _2);
+    this->m_net->Listen(56789, NULL, cbConnReceive);
 
     this->Loop();
 }
@@ -29,15 +32,12 @@ void Application::Loop()
     }
 }
 
-
-void Application::Send(ProtcolId main, ProtcolId sub, ::google::protobuf::MessageLite& msg)
+void Application::Send(std::shared_ptr<Session> session, short id, ::google::protobuf::MessageLite* msg)
 {
-    size_t size = msg.ByteSizeLong();
+    this->m_net->Send(session, id, msg);
+}
 
-    void* buff = malloc(size);
-    msg.SerializeToArray(buff, size);
-
-    this->m_net->Send();
-
-    free(buff);
+void Application::ConnReceive(std::shared_ptr<Session> session, std::shared_ptr<NetPacket> pkg)
+{
+    printf("sessionId:%d\n", session->id);
 }

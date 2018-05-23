@@ -2,3 +2,4 @@
 
 BIN=./deploy/servers/bin/appSrv
 $BIN
+
