@@ -7,6 +7,7 @@ bool Application::Start()
     this->m_net = new NetWork();
 
     NetReceiveDef cbConnReceive = std::bind(&Application::ConnReceive, this, _1, _2);
+    this->m_net->Start();
     this->m_net->Listen(56789, NULL, cbConnReceive);
 
     this->Loop();

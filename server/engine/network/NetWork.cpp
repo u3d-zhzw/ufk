@@ -31,8 +31,6 @@ void NetWork::Loop()
     event_base_loop(this->m_base, EVLOOP_NONBLOCK);
 }
 
-
-
 std::shared_ptr<Session> NetWork::Connect(string ip, int port, NetStatueDef cbStatus, NetReceiveDef cbRecv)
 {
     struct bufferevent* bev = bufferevent_socket_new(this->m_base, -1, BEV_OPT_CLOSE_ON_FREE);
@@ -50,6 +48,8 @@ std::shared_ptr<Session> NetWork::Connect(string ip, int port, NetStatueDef cbSt
         return NULL;
     }
 
+    printf("connect bev point address %p\n", bev);
+
     this->m_cbNetStatus = cbStatus;
     this->m_cbRecv = cbRecv;
 
@@ -60,7 +60,7 @@ std::shared_ptr<Session> NetWork::Connect(string ip, int port, NetStatueDef cbSt
     //bufferevent_setwatermark(ep->GetBufferEvent(), EV_READ, DEF_STPKG_FIRST_WATERMARK, 0);
     bufferevent_enable(bev, EV_READ|EV_WRITE);
 
-    return 0;
+    return session;
 }
 
 void NetWork::Listen(int port, NetStatueDef cbStatus, NetReceiveDef cbRecv)
@@ -111,10 +111,11 @@ void NetWork::Send(std::shared_ptr<Session> session, unsigned short id, ::google
     msg->SerializeToArray(buff + HEAD_SIZE, size);
 
     struct evbuffer* outbuffer = bufferevent_get_output(bev);
-    if(evbuffer_add_reference(outbuffer, buff, totalSize , NULL, NULL) != 0)
-    {  
-        printf("sendd msg fail!\n");
-    }
+    //if(evbuffer_add_reference(outbuffer, buff, totalSize , NULL, NULL) != 0)
+    if (bufferevent_write(bev, buff, totalSize) != 0)
+            {   
+            printf("sendd msg fail!\n");
+            }
 
     free(buff);
 }
@@ -134,21 +135,22 @@ NetWork::listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
         return;
     }
 
-    bufferevent_setcb(bev, conn_readcb, conn_writecb, conn_eventcb, pNet);
-    bufferevent_enable(bev, EV_READ|EV_WRITE);
+    bufferevent_setcb(bev, conn_readcb, NULL, conn_eventcb, pNet);
+    bufferevent_enable(bev, EV_READ);
+//    bufferevent_setwatermark(bev, EV_READ, 1, 0);
 
+    std::shared_ptr<Session> session = Session::MakeSession();
+    pNet->BindSession(session, bev);
 
     //bufferevent_enable(bev, EV_WRITE);
     //bufferevent_disable(bev, EV_READ);
     
-    /*
     int msgLen = strlen(MESSAGE);
-    fprintf(stderr, "msgLen:%d\n", msgLen);
-    for (int i = 0, iMax = 10; i < iMax; ++i)
-    {
+    //fprintf(stderr, "msgLen:%d\n", msgLen);
+    //for (int i = 0, iMax = 10; i < iMax; ++i)
+    //{
         bufferevent_write(bev, MESSAGE, msgLen);
-    }
-    */
+    //}
 }
 
 void
@@ -158,16 +160,16 @@ NetWork::conn_readcb(struct bufferevent *bev, void *ctx)
     size_t len = evbuffer_get_length(input);
     fprintf(stderr, "rec len = %ld", len);
 
-    char data[128];
-    int rbLen = evbuffer_remove(input, data, 128);
-    fprintf(stderr, "rbLen:%d\n", rbLen);
+    //char data[128];
+    //int rbLen = evbuffer_remove(input, data, 128);
+    //fprintf(stderr, "rbLen:%d\n", rbLen);
     
-    Person person;
-    person.ParseFromArray(data, rbLen);
-    fprintf(stderr, "Id:%d\n", person.id());
-    fprintf(stderr, "Name:%s\n", person.name().c_str());
-    fprintf(stderr, "Address.line1:%s\n", person.address().line1().c_str());
-    fprintf(stderr, "Address.line2:%s\n", person.address().line2().c_str());
+    //Person person;
+    //person.ParseFromArray(data, rbLen);
+    //fprintf(stderr, "Id:%d\n", person.id());
+    //fprintf(stderr, "Name:%s\n", person.name().c_str());
+    //fprintf(stderr, "Address.line1:%s\n", person.address().line1().c_str());
+    //fprintf(stderr, "Address.line2:%s\n", person.address().line2().c_str());
 }
 
 void
@@ -194,8 +196,10 @@ NetWork::conn_eventcb(struct bufferevent *bev, short events, void *user_data)
     }
     else if (events & BEV_EVENT_CONNECTED)//主动连接回调 
     {
+        printf("event bev point address %p\n", bev);
         if (!pNet->IsBind(bev))
         {
+            printf("bind\n");
             std::shared_ptr<Session> session = Session::MakeSession();
             pNet->BindSession(session, bev);
         }
@@ -204,19 +208,19 @@ NetWork::conn_eventcb(struct bufferevent *bev, short events, void *user_data)
 
     /* None of the other events can happen here, since we haven't enabled
      *   * timeouts */
-    bufferevent_free(bev);
+    //bufferevent_free(bev);
 }
 
 bool NetWork::IsBind(std::shared_ptr<Session> session)
 {
     auto itr = this->m_mapSession.find(session);
-    return itr == this->m_mapSession.end();
+    return itr != this->m_mapSession.end();
 }
 
 bool NetWork::IsBind(struct bufferevent* bev)
 {
     auto itr = this->m_mapBufEvt.find(bev);
-    return itr == this->m_mapBufEvt.end();
+    return itr != this->m_mapBufEvt.end();
 }
 
 void
