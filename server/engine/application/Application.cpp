@@ -6,11 +6,13 @@ bool Application::Start()
 {
     this->m_net = new NetWork();
 
-    NetReceiveDef cbConnReceive = std::bind(&Application::ConnReceive, this, _1, _2);
+    NetReceiveDef cbConnReceive = std::bind(&Application::ConnReceive, this, _1, _2, _3, _4);
     this->m_net->Start();
     this->m_net->Listen(56789, NULL, cbConnReceive);
 
     this->Loop();
+
+    return true;
 }
 
 void Application::Stop()
@@ -38,7 +40,9 @@ void Application::Send(std::shared_ptr<Session> session, short id, ::google::pro
     this->m_net->Send(session, id, msg);
 }
 
-void Application::ConnReceive(std::shared_ptr<Session> session, std::shared_ptr<NetPacket> pkg)
+void Application::ConnReceive(std::shared_ptr<Session> session, ProtcolId id, const void* data, unsigned short size)
 {
+    printf("id:%d\n", id);
     printf("sessionId:%d\n", session->id);
+    printf("data.len:%d\n", size);
 }

@@ -9,7 +9,7 @@ class NetPacket;
 
 
 typedef unsigned int SessionId;
-typedef char ProtcolId;
+typedef unsigned short ProtcolId;
 
 /**
  * @breif 网络状态
@@ -22,6 +22,6 @@ enum E_TCPCONNSATUS
 };
 
 typedef std::function<void(E_TCPCONNSATUS)> NetStatueDef;
-typedef std::function<void(std::shared_ptr<Session>, std::shared_ptr<NetPacket>)> NetReceiveDef;
+typedef std::function<void(std::shared_ptr<Session>, ProtcolId id, const void* data, unsigned short size)> NetReceiveDef;
 
 #endif //__DEFINES_H

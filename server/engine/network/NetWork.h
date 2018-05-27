@@ -26,6 +26,7 @@ public:
     void Listen(int port, NetStatueDef status_cb, NetReceiveDef recv_cb);
 
     void Send(std::shared_ptr<Session> session, unsigned short id, ::google::protobuf::MessageLite* msg);
+    void Send(std::shared_ptr<Session> session, void* data, size_t size);
 
 public:
     bool Start();
@@ -43,6 +44,8 @@ private:
 private:
     void BindSession(std::shared_ptr<Session> session, struct bufferevent * bev);
     void UnBindSession(std::shared_ptr<Session> session);
+    std::shared_ptr<Session> GetSession(struct bufferevent* bev);
+    struct bufferevent* GetEventBuffer(std::shared_ptr<Session> session);
     bool IsBind(std::shared_ptr<Session> session);
     bool IsBind(struct bufferevent* bev);
 
@@ -51,7 +54,8 @@ private:
     struct evconnlistener* m_listener;
 
     std::unordered_map<std::shared_ptr<Session>, struct bufferevent *> m_mapSession;
-    std::unordered_map<struct bufferevent * , std::shared_ptr<Session>> m_mapBufEvt;
+    std::unordered_map<struct bufferevent *, std::shared_ptr<Session>> m_mapBufEvt;
+    std::unordered_map<struct bufferevent *, std::string> m_mapBevStream;
 
     NetStatueDef m_cbNetStatus;
     NetReceiveDef m_cbRecv;

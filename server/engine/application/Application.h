@@ -20,7 +20,7 @@ public:
        void Send(std::shared_ptr<Session> session, short id, ::google::protobuf::MessageLite* msg);
 
 private:
-       void ConnReceive(std::shared_ptr<Session> session, std::shared_ptr<NetPacket> pkg);
+       void ConnReceive(std::shared_ptr<Session> session, ProtcolId id, const void* data, unsigned short size);
 
 private:
     NetWork* m_net;

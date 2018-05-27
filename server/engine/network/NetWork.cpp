@@ -1,10 +1,14 @@
 #include <algorithm>
+#include <netinet/in.h>
 
 #include "NetWork.h"
-
 #include "pb/Person.pb.h"
 
 static const char MESSAGE[] = "Hello, World!\n";
+
+char* buffer = NULL;
+unsigned short remainSize = 0;
+unsigned short HEAD_SIZE = 7;
 
 bool NetWork::Start()
 {
@@ -57,8 +61,8 @@ std::shared_ptr<Session> NetWork::Connect(string ip, int port, NetStatueDef cbSt
     this->BindSession(session, bev);
 
     bufferevent_setcb(bev, conn_readcb, NULL, conn_eventcb, this);
-    //bufferevent_setwatermark(ep->GetBufferEvent(), EV_READ, DEF_STPKG_FIRST_WATERMARK, 0);
     bufferevent_enable(bev, EV_READ|EV_WRITE);
+    bufferevent_setwatermark(bev, EV_READ, HEAD_SIZE, 0);
 
     return session;
 }
@@ -93,31 +97,38 @@ void NetWork::Send(std::shared_ptr<Session> session, unsigned short id, ::google
         return;
     }
 
-    bufferevent* bev = this->m_mapSession[session];
+    // todo: add crc
+    size_t bodySize = msg->ByteSizeLong();
+    unsigned short totalSize = HEAD_SIZE + bodySize;
+
+    char* buff = (char*)malloc(totalSize);
+    *((unsigned char*)buff) = 1;                // packet type
+    *((unsigned short*)(buff + 1)) = htons(id);          // identify id
+    *((unsigned short*)(buff + 3)) = htons(bodySize);  // body size
+    *((unsigned short*)(buff + 5)) = htons(totalSize); // packet size
+
+    msg->SerializeToArray(buff + HEAD_SIZE, bodySize);
+
+    this->Send(session, buff, totalSize);
+    printf("bodysize:%d\n", (int)bodySize);
+
+    free(buff);
+}
+
+void NetWork::Send(std::shared_ptr<Session> session, void* data, size_t size)
+{
+    bufferevent* bev = this->GetEventBuffer(session);
     if (bev == NULL)
     {
         return ;
     }
-    
-    size_t size = msg->ByteSizeLong();
-    const unsigned short HEAD_SIZE = 4;
-    unsigned short totalSize = HEAD_SIZE + size;
-
-    // todo: check crc
-    void* buff = malloc(totalSize);
-
-    *((unsigned short*)buff) = id;
-    *((unsigned short*)(buff + 2)) = totalSize;
-    msg->SerializeToArray(buff + HEAD_SIZE, size);
-
+ 
     struct evbuffer* outbuffer = bufferevent_get_output(bev);
     //if(evbuffer_add_reference(outbuffer, buff, totalSize , NULL, NULL) != 0)
-    if (bufferevent_write(bev, buff, totalSize) != 0)
-            {   
-            printf("sendd msg fail!\n");
-            }
-
-    free(buff);
+    if (bufferevent_write(bev, data, size) != 0)
+    {   
+        printf("sendd msg fail!\n");
+    }
 }
 
 void
@@ -137,7 +148,7 @@ NetWork::listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
     bufferevent_setcb(bev, conn_readcb, NULL, conn_eventcb, pNet);
     bufferevent_enable(bev, EV_READ);
-//    bufferevent_setwatermark(bev, EV_READ, 1, 0);
+    bufferevent_setwatermark(bev, EV_READ, HEAD_SIZE, 0);
 
     std::shared_ptr<Session> session = Session::MakeSession();
     pNet->BindSession(session, bev);
@@ -145,23 +156,66 @@ NetWork::listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
     //bufferevent_enable(bev, EV_WRITE);
     //bufferevent_disable(bev, EV_READ);
     
-    int msgLen = strlen(MESSAGE);
+    //int msgLen = strlen(MESSAGE);
     //fprintf(stderr, "msgLen:%d\n", msgLen);
     //for (int i = 0, iMax = 10; i < iMax; ++i)
     //{
-        bufferevent_write(bev, MESSAGE, msgLen);
+        //bufferevent_write(bev, MESSAGE, msgLen);
     //}
 }
 
 void
 NetWork::conn_readcb(struct bufferevent *bev, void *ctx)
 {
+    NetWork* pNet = (NetWork*) ctx;
+
+    std::shared_ptr<Session> session = pNet->GetSession(bev);
+    if (session == NULL)
+    {
+        printf("can not find session for bev:%p\n", bev);
+        return;
+    }
+
     struct evbuffer *input = bufferevent_get_input(bev);
     size_t len = evbuffer_get_length(input);
-    fprintf(stderr, "rec len = %ld", len);
+    fprintf(stderr, "rec len = %ld\n", len);
 
-    //char data[128];
-    //int rbLen = evbuffer_remove(input, data, 128);
+    char* buff= (char*) malloc(len);
+    int buffSize = evbuffer_remove(input, buff, len);
+    pNet->m_mapBevStream[bev].append(buff, buffSize);
+    free(buff);
+
+    std::string& source = pNet->m_mapBevStream[bev];
+    size_t sourceSize = source.length();
+
+    if (sourceSize > HEAD_SIZE)
+    {
+        const char* data = source.data();
+        unsigned char type = *((unsigned char*)data);
+        unsigned short id = ntohs(*((unsigned short*)(data + 1)));
+        unsigned short bodySize = ntohs(*((unsigned short*)(data + 3)));
+        unsigned short pkgSize = ntohs(*((unsigned short*)(data + 5)));
+
+        // todo: 
+        // 1. deal with packet type
+        // 2. check crc
+        if (sourceSize >= pkgSize)
+        {
+            if (pNet->m_cbRecv != NULL)
+            {
+                pNet->m_cbRecv(session, id, data + HEAD_SIZE, bodySize);
+            }
+
+            source.erase(0, pkgSize);
+            
+            // deal with next packet
+            if (source.length() > 0)
+            {
+                conn_readcb(bev, ctx);
+            }
+        }
+    }
+
     //fprintf(stderr, "rbLen:%d\n", rbLen);
     
     //Person person;
@@ -259,3 +313,27 @@ NetWork::UnBindSession(std::shared_ptr<Session> session)
         fprintf(stderr, "UnBindSession error mapSession.size=%d mapBufEvt.size=%d\n", (int)this->m_mapSession.size(), (int)this->m_mapBufEvt.size());
     }
 }
+
+std::shared_ptr<Session> NetWork::GetSession(struct bufferevent* bev)
+{
+    auto itr = this->m_mapBufEvt.find(bev);
+    if (itr == this->m_mapBufEvt.end())
+    {
+        return NULL;
+    }
+
+    return itr->second;
+}
+
+struct bufferevent* NetWork::GetEventBuffer(std::shared_ptr<Session> session)
+{
+    auto itr = this->m_mapSession.find(session);
+    if (itr == this->m_mapSession.end())
+    {
+        return NULL;
+    }
+
+    return itr->second;
+
+}
+
