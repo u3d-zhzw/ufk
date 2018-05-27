@@ -54,6 +54,8 @@ case $act in
         ;;
 
     *)
+        build
+        copy
         ;;
 esac
 
