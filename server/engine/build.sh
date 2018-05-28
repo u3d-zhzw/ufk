@@ -10,7 +10,7 @@ DEPLOY_PATH=${BASE_PATH}/deploy
 # cmake 2.6 or above
 # gcc 4.8 or above
 
-function copy
+copy()
 {
     # TODO: check directionary existed
     # TODO: copy list
@@ -24,13 +24,13 @@ function copy
 
 }
 
-function build
+build()
 {
     cd ${BUILD_PATH}
     make -j 4
 }
 
-function clean_build
+clean_build()
 {
     rm -rf ${BUILD_PATH}
     mkdir ${BUILD_PATH}
