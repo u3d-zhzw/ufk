@@ -1,4 +1,4 @@
 language: cpp
 sudo: required
 compiler: gcc
-script: ./server/engine/build.sh cb
+script: sh ./server/engine/build.sh cb
