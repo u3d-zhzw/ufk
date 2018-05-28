@@ -14,12 +14,12 @@ std::shared_ptr<Session> Session::MakeSession()
 }
 
 
-void Session::FreeSession(Session* pSession)
+void Session::FreeSession(std::shared_ptr<Session> pSession)
 {
     // todo: try to reuse sesionid
     if (pSession != NULL)
     {
-        delete pSession;
+//        delete pSession;
     }
     
     pSession = NULL;

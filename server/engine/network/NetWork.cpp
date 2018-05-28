@@ -23,11 +23,29 @@ bool NetWork::Start()
 
 void NetWork::Stop()
 {
-    evconnlistener_free(this->m_listener);
+    if (this->m_listener != NULL)
+    {
+        evconnlistener_free(this->m_listener);
+    }
+    this->m_listener = NULL;
+
     if (this->m_base != NULL)
     {
         event_base_free(this->m_base);
     }
+    this->m_base = NULL;
+
+    for (auto i = this->m_mapSession.begin(); i != this->m_mapSession.end(); ++i)
+    {
+        this->UnBindSession(i->first);
+    }
+    this->m_mapSession.clear();
+
+    for (auto i = this->m_mapBufEvt.begin(); i != this->m_mapBufEvt.end(); ++i)
+    {
+        this->UnBind(i->first);
+    }
+    this->m_mapBufEvt.clear();
 }
 
 void NetWork::Loop()
@@ -57,7 +75,7 @@ std::shared_ptr<Session> NetWork::Connect(string ip, int port, NetStatueDef cbSt
     this->m_cbNetStatus = cbStatus;
     this->m_cbRecv = cbRecv;
 
-    std::shared_ptr<Session> session = Session::MakeSession();
+    std::shared_ptr<Session> session = std::make_shared<Session>();
     this->BindSession(session, bev);
 
     bufferevent_setcb(bev, conn_readcb, NULL, conn_eventcb, this);
@@ -117,7 +135,7 @@ void NetWork::Send(std::shared_ptr<Session> session, unsigned short id, ::google
 
 void NetWork::Send(std::shared_ptr<Session> session, void* data, size_t size)
 {
-    bufferevent* bev = this->GetEventBuffer(session);
+    bufferevent* bev = this->GetBufferevent(session);
     if (bev == NULL)
     {
         return ;
@@ -243,6 +261,7 @@ NetWork::conn_eventcb(struct bufferevent *bev, short events, void *user_data)
     if (events & BEV_EVENT_EOF) 
     {
         printf("Connection closed.\n");
+        pNet->UnBind(bev);
     } 
     else if (events & BEV_EVENT_ERROR) 
     {
@@ -259,10 +278,6 @@ NetWork::conn_eventcb(struct bufferevent *bev, short events, void *user_data)
         }
         printf("connected\n");
     }
-
-    /* None of the other events can happen here, since we haven't enabled
-     *   * timeouts */
-    //bufferevent_free(bev);
 }
 
 bool NetWork::IsBind(std::shared_ptr<Session> session)
@@ -287,22 +302,22 @@ NetWork::BindSession(std::shared_ptr<Session> session, struct bufferevent * bev)
 void
 NetWork::UnBindSession(std::shared_ptr<Session> session)
 {
-    struct bufferevent* bufEvt = NULL;
+    struct bufferevent* bev = NULL;
 
     auto itr = this->m_mapSession.find(session);
     if (itr != this->m_mapSession.end())
     {
         this->m_mapSession.erase(itr);
-        bufEvt = itr->second;
+        bev = itr->second;
     }
 
-    if (bufEvt == NULL)
+    if (bev == NULL)
     {
         fprintf(stderr, "can not find bufEvt\n");
         return;
     }
 
-    auto itr2 = this->m_mapBufEvt.find(bufEvt);
+    auto itr2 = this->m_mapBufEvt.find(bev);
     if (itr2 != this->m_mapBufEvt.end())
     {
         this->m_mapBufEvt.erase(itr2);
@@ -312,6 +327,39 @@ NetWork::UnBindSession(std::shared_ptr<Session> session)
     {
         fprintf(stderr, "UnBindSession error mapSession.size=%d mapBufEvt.size=%d\n", (int)this->m_mapSession.size(), (int)this->m_mapBufEvt.size());
     }
+
+    bufferevent_free(bev);
+}
+
+void NetWork::UnBind(struct bufferevent* bev)
+{
+    std::shared_ptr<Session> session = NULL;
+
+    auto itrBev = this->m_mapBufEvt.find(bev);
+    if (itrBev != this->m_mapBufEvt.end())
+    {
+        this->m_mapBufEvt.erase(itrBev);
+        session = itrBev->second;
+    }
+
+    if (session == NULL)
+    {
+        fprintf(stderr, "can not find session\n");
+        return;
+    }
+
+    auto itrSession = this->m_mapSession.find(session);
+    if (itrSession != this->m_mapSession.end())
+    {
+        this->m_mapSession.erase(itrSession);
+    }
+
+    if (this->m_mapSession.size() != this->m_mapBufEvt.size())
+    {
+        fprintf(stderr, "UnBindSession error mapSession.size=%d mapBufEvt.size=%d\n", (int)this->m_mapSession.size(), (int)this->m_mapBufEvt.size());
+    }
+
+    bufferevent_free(bev);
 }
 
 std::shared_ptr<Session> NetWork::GetSession(struct bufferevent* bev)
@@ -325,7 +373,7 @@ std::shared_ptr<Session> NetWork::GetSession(struct bufferevent* bev)
     return itr->second;
 }
 
-struct bufferevent* NetWork::GetEventBuffer(std::shared_ptr<Session> session)
+struct bufferevent* NetWork::GetBufferevent(std::shared_ptr<Session> session)
 {
     auto itr = this->m_mapSession.find(session);
     if (itr == this->m_mapSession.end())
@@ -334,6 +382,4 @@ struct bufferevent* NetWork::GetEventBuffer(std::shared_ptr<Session> session)
     }
 
     return itr->second;
-
 }
-

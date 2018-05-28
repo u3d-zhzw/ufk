@@ -19,6 +19,7 @@ void Application::Stop()
 {
     if (this->m_net != NULL)
     {
+        this->m_net->Stop();
         delete this->m_net;
     }
     this->m_net = NULL;

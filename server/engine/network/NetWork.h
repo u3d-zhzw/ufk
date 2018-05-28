@@ -44,8 +44,9 @@ private:
 private:
     void BindSession(std::shared_ptr<Session> session, struct bufferevent * bev);
     void UnBindSession(std::shared_ptr<Session> session);
+    void UnBind(struct bufferevent* bev);
     std::shared_ptr<Session> GetSession(struct bufferevent* bev);
-    struct bufferevent* GetEventBuffer(std::shared_ptr<Session> session);
+    struct bufferevent* GetBufferevent(std::shared_ptr<Session> session);
     bool IsBind(std::shared_ptr<Session> session);
     bool IsBind(struct bufferevent* bev);
 
