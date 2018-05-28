@@ -228,25 +228,22 @@ public class TCPConnection : TcpClient
     {
         while (this.Working)
         {
-            if (networkStream != null 
-                && networkStream.CanRead 
+            if (networkStream != null
+                && networkStream.CanRead
                 && networkStream.DataAvailable)
             {
-                    try
-                    {
-                        byte[] data = new byte[128];
-                        int len = networkStream.Read(data, 0, 128);
-                        Debug.Log("rec data len = " + len);
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.Log("TcpSocket Read" + e.ToString());
-                        return;
-                    }
+                try
+                {
+                    this.Receive();
+                }
+                catch (Exception e)
+                {
+                    this.SocketStateChanged(NetStatus.ERROR, "TCPSocket Read->\n" + e);
+                    return;
+                }
             }
         }
     }
-
 
 
     public virtual void Update()
@@ -350,7 +347,7 @@ public class TCPConnection : TcpClient
         }
     }
 
-    public virtual void Receive(NetworkStream stream)
+    public virtual void Receive()
     {
         throw new NotImplementedException();
     }
