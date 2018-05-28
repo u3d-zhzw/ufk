@@ -1,0 +1,3 @@
+language:cpp
+compiler:gcc
+script:sh build.sh cb
