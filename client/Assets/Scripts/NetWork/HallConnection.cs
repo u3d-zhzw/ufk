@@ -21,20 +21,19 @@ class HallConnection
 
     public delegate void ProtocolResponseHandler(ushort id, byte[] data);
 
-    private System.Action<System.Object> tmpCallback = null;
-    private System.Object tmpuserData = null;
+    private System.Action cbConn = null;
+    private System.Action<bool> cbReconn = null;
 
-    public event ProtocolResponseHandler NetPacketHander = null;
     private Dictionary<ushort, LinkedList<ProtocolResponseHandler>> dictProtocol = new Dictionary<ushort, LinkedList<ProtocolResponseHandler>>();
 
     private Queue<Protocol> protoQueue = new Queue<Protocol>();
     private MemoryStream buffer = new MemoryStream();
     private uint pkgSize = 0;
 
-    public void Connect(string ip, int port, System.Action<System.Object> successCallback = null, System.Object userdata = null)
+    public void Connect(string ip, int port, System.Action cbConn = null, System.Action<bool> cbReconn = null)
     {
-        this.tmpCallback = successCallback;
-        this.tmpuserData = userdata;
+        this.cbConn = cbConn;
+        this.cbReconn = cbReconn;
 
         base.SocketStateChangedEvent -= this.OnSocketStatusEvent;
         base.SocketStateChangedEvent += this.OnSocketStatusEvent;
@@ -50,9 +49,9 @@ class HallConnection
         }
         else if (sst == NetStatus.CONNECTED)
         {
-            if (tmpCallback != null)
+            if (this.cbConn != null)
             {
-                tmpCallback(tmpuserData);
+                this.cbConn();
             }
         }
         else if (sst == NetStatus.CLOSED)
@@ -73,22 +72,44 @@ class HallConnection
         }
     }
 
-    public void Send<T>(T t)
+    public void Send<T>(ushort id, T t)
     {
-        byte[] data = null;
+        byte[] bodyBuf = null;
         using (MemoryStream memStream = new MemoryStream())
         {
             Serializer.Serialize(memStream, t);
-            data = memStream.ToArray();
+            bodyBuf = memStream.ToArray();
         }
 
-        if (data == null || data.Length <= 0)
+
+        ushort bodySize = 0;
+        ushort pkgSize = (ushort)PACKET_HEAD_SIZE;
+        if (bodyBuf != null && bodyBuf.Length > 0)
         {
-            Debug.LogWarning("emptye package");
-            return;
+            bodySize = (ushort)bodyBuf.Length;
+        }
+        pkgSize += bodySize;
+
+
+        byte[] pkgBuf = null;
+        using (MemoryStream memStream = new MemoryStream())
+        {
+            using(BinaryWriter writer = new BinaryWriter(memStream))
+            {
+                writer.Write((byte)1);
+                writer.Write(id);
+                writer.Write(bodySize);
+                writer.Write(pkgSize);
+                if (pkgSize > bodySize)
+                {
+                    writer.Write(bodyBuf, 0, bodySize);
+                }
+            }
+
+            pkgBuf = memStream.ToArray();
         }
 
-        base.Send(data);
+        base.Send(pkgBuf);
     }
 
     public void Listen(ushort id, ProtocolResponseHandler handler)
@@ -135,6 +156,8 @@ class HallConnection
 
     public override void Update()
     {
+        base.Update();
+
         Queue<Protocol> frameQue = null;
         lock (this.protoQueue)
         {

@@ -70,11 +70,11 @@ public class TestProtoclBuffer : MonoBehaviour
         }
 
         this.conn = new HallConnection();
-        this.conn.Connect("47.106.66.32", 56789, (System.Object userdata) =>
+        this.conn.Connect("47.106.66.32", 56789, () =>
         {
             Debug.LogError("callback");
             this.conn.Send(data);
-        }, null);
+        });
     }
 
     public void TestProto()
