@@ -46,4 +46,9 @@ void Application::ConnReceive(std::shared_ptr<Session> session, ProtcolId id, co
     printf("id:%d\n", id);
     printf("sessionId:%d\n", session->id);
     printf("data.len:%d\n", size);
+    
+    if (id == 1)
+    {
+        this->m_net->Send(session, 2, (void*)data, size);
+    }
 }

@@ -4,10 +4,6 @@
 #include "NetWork.h"
 #include "pb/Person.pb.h"
 
-static const char MESSAGE[] = "Hello, World!\n";
-
-char* buffer = NULL;
-unsigned short remainSize = 0;
 unsigned short HEAD_SIZE = 7;
 
 bool NetWork::Start()
@@ -50,7 +46,10 @@ void NetWork::Stop()
 
 void NetWork::Loop()
 {
-    event_base_loop(this->m_base, EVLOOP_NONBLOCK);
+    if (this->m_base != NULL)
+    {
+        event_base_loop(this->m_base, EVLOOP_NONBLOCK);
+    }
 }
 
 std::shared_ptr<Session> NetWork::Connect(string ip, int port, NetStatueDef cbStatus, NetReceiveDef cbRecv)
@@ -133,6 +132,29 @@ void NetWork::Send(std::shared_ptr<Session> session, unsigned short id, ::google
     free(buff);
 }
 
+void NetWork::Send(std::shared_ptr<Session> session, ProtcolId id, void* body, size_t bodySize)
+{
+    if (body == NULL)
+    {
+        return ;
+    }
+
+    unsigned short totalSize = HEAD_SIZE + bodySize;
+
+    char* buff = (char*)malloc(totalSize);
+    *((unsigned char*)buff) = 1;                        // packet type
+    *((unsigned short*)(buff + 1)) = htons(id);         // identify id
+    *((unsigned short*)(buff + 3)) = htons(bodySize);  // body size
+    *((unsigned short*)(buff + 5)) = htons(totalSize); // packet size
+
+    memcpy(buff + HEAD_SIZE, body , bodySize);
+
+    this->Send(session, buff, totalSize);
+    printf("bodysize:%d\n", (int)bodySize);
+
+    free(buff);
+}
+
 void NetWork::Send(std::shared_ptr<Session> session, void* data, size_t size)
 {
     bufferevent* bev = this->GetBufferevent(session);
@@ -170,16 +192,7 @@ NetWork::listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
     std::shared_ptr<Session> session = Session::MakeSession();
     pNet->BindSession(session, bev);
-
-    //bufferevent_enable(bev, EV_WRITE);
-    //bufferevent_disable(bev, EV_READ);
-    
-    //int msgLen = strlen(MESSAGE);
-    //fprintf(stderr, "msgLen:%d\n", msgLen);
-    //for (int i = 0, iMax = 10; i < iMax; ++i)
-    //{
-        //bufferevent_write(bev, MESSAGE, msgLen);
-    //}
+    printf("listen\n");
 }
 
 void
@@ -196,7 +209,11 @@ NetWork::conn_readcb(struct bufferevent *bev, void *ctx)
 
     struct evbuffer *input = bufferevent_get_input(bev);
     size_t len = evbuffer_get_length(input);
-    fprintf(stderr, "rec len = %ld\n", len);
+
+    if (len <= 0)
+    {
+        return ;
+    }
 
     char* buff= (char*) malloc(len);
     int buffSize = evbuffer_remove(input, buff, len);
@@ -233,15 +250,6 @@ NetWork::conn_readcb(struct bufferevent *bev, void *ctx)
             }
         }
     }
-
-    //fprintf(stderr, "rbLen:%d\n", rbLen);
-    
-    //Person person;
-    //person.ParseFromArray(data, rbLen);
-    //fprintf(stderr, "Id:%d\n", person.id());
-    //fprintf(stderr, "Name:%s\n", person.name().c_str());
-    //fprintf(stderr, "Address.line1:%s\n", person.address().line1().c_str());
-    //fprintf(stderr, "Address.line2:%s\n", person.address().line2().c_str());
 }
 
 void
@@ -258,6 +266,7 @@ void
 NetWork::conn_eventcb(struct bufferevent *bev, short events, void *user_data)
 {
     NetWork* pNet = (NetWork*)user_data;
+    
     if (events & BEV_EVENT_EOF) 
     {
         printf("Connection closed.\n");

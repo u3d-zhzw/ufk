@@ -26,6 +26,7 @@ public:
     void Listen(int port, NetStatueDef status_cb, NetReceiveDef recv_cb);
 
     void Send(std::shared_ptr<Session> session, unsigned short id, ::google::protobuf::MessageLite* msg);
+    void Send(std::shared_ptr<Session> session, ProtcolId id, void* body, size_t bodySize);
     void Send(std::shared_ptr<Session> session, void* data, size_t size);
 
 public:

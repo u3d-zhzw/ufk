@@ -15,7 +15,6 @@ std::shared_ptr<Session> session;
 
 std::string gen_random(const int len) 
 {
-    printf("len:%d\n", len);
     static const char alphanum[] =
         "0123456789"
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -35,9 +34,9 @@ void RandPacket()
 {
     time_t t;
     time(&t);
-    printf("time:%ld\n",t);
 
     ::google::protobuf::MessageLite* msg = NULL;
+    unsigned short id = 1;
     time_t mod = 1;
     int len_mod = 15;
     if (t % mod == 0)
@@ -51,20 +50,22 @@ void RandPacket()
         adr.set_line2(gen_random(rand() % len_mod));
 
         *(person.mutable_address()) = adr;
-        net.Send(session, 43, &person);
+        net.Send(session, id, &person);
     }
     else
     {
         Hellow h;
         h.set_msg(gen_random(rand() % len_mod));
         msg = &h;
-        net.Send(session, 44, &h);
+        net.Send(session, id, &h);
     }
 }
 
 void DealNetRecv(std::shared_ptr<Session> session, ProtcolId id, const void* data, unsigned short size)
 {
     printf("recv data\n");
+    printf("id:%d\n", id);
+    printf("bodysize:%d\n", size);
 }
 
 int
