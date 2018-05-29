@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
+using System.Net;
 
 class HallConnection
     : TCPConnection
@@ -90,19 +91,22 @@ class HallConnection
         }
         pkgSize += bodySize;
 
-
         byte[] pkgBuf = null;
         using (MemoryStream memStream = new MemoryStream())
         {
             using(BinaryWriter writer = new BinaryWriter(memStream))
             {
+                id = (ushort)IPAddress.HostToNetworkOrder((short)id);
+                bodySize = (ushort)IPAddress.HostToNetworkOrder((short)bodySize);
+                pkgSize = (ushort)IPAddress.HostToNetworkOrder((short)pkgSize);
+
                 writer.Write((byte)1);
                 writer.Write(id);
                 writer.Write(bodySize);
                 writer.Write(pkgSize);
                 if (pkgSize > bodySize)
                 {
-                    writer.Write(bodyBuf, 0, bodySize);
+                    writer.Write(bodyBuf, 0, bodyBuf.Length);
                 }
             }
 
