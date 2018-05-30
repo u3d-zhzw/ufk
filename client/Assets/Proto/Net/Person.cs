@@ -7,8 +7,8 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-// Generated from: Net/TestNet.proto
-namespace Net.TestNet
+// Generated from: Net/Person.proto
+namespace Net.Person
 {
   [global::System.Serializable, global::ProtoBuf.ProtoContract(Name=@"Address")]
   public partial class Address : global::ProtoBuf.IExtensible
