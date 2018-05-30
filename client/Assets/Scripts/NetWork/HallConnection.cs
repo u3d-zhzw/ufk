@@ -10,9 +10,9 @@ using System.Net;
 class HallConnection
     : TCPConnection
 {
-    public const uint PACKET_HEAD_SIZE = 7;
+    public const ushort PACKET_HEAD_SIZE = 7;
     // body数据在头部偏移量的位置
-    public const uint PACKET_SIZE_OFFSET = 5;
+    public const ushort BODY_SIZE_OFFSET = 3;
 
     public class Protocol
     {
@@ -28,8 +28,8 @@ class HallConnection
     private Dictionary<ushort, LinkedList<ProtocolResponseHandler>> dictProtocol = new Dictionary<ushort, LinkedList<ProtocolResponseHandler>>();
 
     private Queue<Protocol> protoQueue = new Queue<Protocol>();
-    private MemoryStream buffer = new MemoryStream();
-    private uint pkgSize = 0;
+    byte[] pkgBuffer = new byte[1024];
+    private ushort remainPkgSize = 0;
 
     public void Connect(string ip, int port, System.Action cbConn = null, System.Action<bool> cbReconn = null)
     {
@@ -38,6 +38,8 @@ class HallConnection
 
         base.SocketStateChangedEvent -= this.OnSocketStatusEvent;
         base.SocketStateChangedEvent += this.OnSocketStatusEvent;
+        this.ReceiveBufferSize = (int)PACKET_HEAD_SIZE;
+        this.remainPkgSize = 0;
 
         base.Connect(ip, port);
     }
@@ -81,7 +83,6 @@ class HallConnection
             Serializer.Serialize(memStream, t);
             bodyBuf = memStream.ToArray();
         }
-
 
         ushort bodySize = 0;
         ushort pkgSize = (ushort)PACKET_HEAD_SIZE;
@@ -179,56 +180,42 @@ class HallConnection
     {
         NetworkStream stream = this.GetStream();
 
-        byte[] data = new byte[this.Available];
-        int size = stream.Read(data, 0, this.Available);
-
-        this.buffer.Seek(0, SeekOrigin.End);
-        this.buffer.Write(data, 0, size);
-
-
-        if (this.buffer.Length >= PACKET_HEAD_SIZE && this.pkgSize <= 0)
+        if (this.Available >= PACKET_HEAD_SIZE && this.remainPkgSize <= 0)
         {
-            this.buffer.Seek(PACKET_SIZE_OFFSET, SeekOrigin.Begin);
-
-            byte[] pkgSizeData = new byte[2];
-            this.buffer.Read(pkgSizeData, (int)PACKET_SIZE_OFFSET, pkgSizeData.Length);
-            this.pkgSize = BitConverter.ToUInt16(pkgSizeData, 0);
-
-            this.buffer.Seek(0, SeekOrigin.End);
+            stream.Read(pkgBuffer, 0, (int)PACKET_HEAD_SIZE);
+            this.remainPkgSize  = BitConverter.ToUInt16(pkgBuffer, (int)BODY_SIZE_OFFSET);
+            this.remainPkgSize = (ushort)IPAddress.NetworkToHostOrder((short)this.remainPkgSize);
+            this.ReceiveBufferSize = this.remainPkgSize;
         }
 
         // 
-        if (this.pkgSize > 0 && this.pkgSize < this.buffer.Length)
+        if (this.remainPkgSize > 0 && this.remainPkgSize <= this.Available)
         {
-            using (BinaryReader reader = new BinaryReader(this.buffer))
+            stream.Read(pkgBuffer, PACKET_HEAD_SIZE, this.remainPkgSize);
+
+            byte type = pkgBuffer[0];
+            ushort id = BitConverter.ToUInt16(pkgBuffer, 1);
+            ushort bodySize = BitConverter.ToUInt16(pkgBuffer, 3);
+            ushort pkgSize = BitConverter.ToUInt16(pkgBuffer, 5);
+
+            id = (ushort)IPAddress.HostToNetworkOrder((short)id);
+            bodySize = (ushort)IPAddress.HostToNetworkOrder((short)bodySize);
+            pkgSize = (ushort)IPAddress.HostToNetworkOrder((short)pkgSize);
+
+            // todo check crc
+            byte[] bodyData = new byte[bodySize];
+            Array.Copy(pkgBuffer, PACKET_HEAD_SIZE, bodyData, 0, bodySize);
+
+            Protocol p = AllocProtocol();
+            p.id = id;
+            p.data = bodyData;
+
+            this.remainPkgSize = 0;
+            this.protoQueue.Enqueue(p);
+            this.ReceiveBufferSize = PACKET_HEAD_SIZE; 
+
+            if (this.Available > 0)
             {
-                byte type = reader.ReadByte();
-                ushort id = reader.ReadUInt16();
-                ushort bodySize = reader.ReadUInt16();
-                ushort pkgSize = reader.ReadUInt16();
-
-                // todo check crc
-                byte[] bodyData = new byte[bodySize];
-                reader.Read(bodyData, 0, bodySize);
-
-                Protocol p = AllocProtocol();
-                p.id = id;
-                p.data = bodyData;
-
-                this.pkgSize = 0;
-                this.protoQueue.Enqueue(p);
-
-
-                // 处理剩余的是字节流
-                long surplusSize = this.buffer.Length - pkgSize;
-                byte[] surplusData = new byte[surplusSize];
-                this.buffer.Seek(pkgSize, SeekOrigin.Begin);
-                this.buffer.Read(surplusData, 0, (int)surplusSize);
-
-                this.buffer.Seek(0, SeekOrigin.Begin);
-                this.buffer.SetLength(0);
-                this.buffer.Write(surplusData, 0, (int)surplusSize);
-
                 this.Receive();
             }
         }

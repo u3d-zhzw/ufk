@@ -5,7 +5,9 @@ using System.IO;
 using UnityEngine;
 using System.Linq;
 using System;
-using Net.TestNet;
+using Net.Person;
+using Net.Hellow;
+using ProtoBuf;
 
 public class TestNetPacket : MonoBehaviour
 {
@@ -43,25 +45,42 @@ public class TestNetPacket : MonoBehaviour
 
     System.Collections.IEnumerator Test()
     {
-        ushort reqId = 1;
-        ushort respId = 2;
 
-        this.conn.Listen(respId, this.NetPackProc);
+        this.conn.Listen(2, this.NetPackProc);
+        this.conn.Listen(4, this.NetPackProc);
 
         while (true)
         {
-            var person = new Person
+            int n = rand.Next(0, 2);
+            if (n == 0)
             {
-                Id = 12345,
-                Name = RandomString(),
-                Address = new Address
+                Person p = new Person
                 {
-                    Line1 = RandomString(),
-                    Line2 = RandomString()
-                }
-            };
+                    Id = 12345,
+                    Name = RandomString(),
+                    Address = new Address
+                    {
+                        Line1 = RandomString(),
+                        Line2 = RandomString()
+                    }
+                };
 
-            this.conn.Send<Person>(reqId, person);
+                this.conn.Send<Person>(1, p);
+                Debug.LogFormat("Person.id:{0}", p.Id);
+                Debug.LogFormat("Person.Name:{0}", p.Name);
+                Debug.LogFormat("Person.Address.Line1:{0}", p.Address.Line1);
+                Debug.LogFormat("Person.Address.Line2:{0}", p.Address.Line2);
+
+            }
+            else if (n == 1)
+            {
+                Hellow h = new Hellow();
+                h.msg = RandomString();
+
+                Debug.LogFormat("Hellow.msg:{0}", h.msg);
+                this.conn.Send<Hellow>(3, h);
+            }
+
             yield return new WaitForSeconds(1f);
         }
     }
@@ -76,7 +95,22 @@ public class TestNetPacket : MonoBehaviour
 
     private void NetPackProc(ushort id, byte[] data)
     {
+        Debug.Log("rec pkg");
         Debug.Log("id:" + id);
         Debug.Log("data.lenght:" + data.Length);
+
+        if (id == 2)
+        {
+            Person p = Serializer.Deserialize<Person>(new MemoryStream(data));
+            Debug.LogFormat("Person.id:{0}", p.Id);
+            Debug.LogFormat("Person.Name:{0}", p.Name);
+            Debug.LogFormat("Person.Address.Line1:{0}", p.Address.Line1);
+            Debug.LogFormat("Person.Address.Line2:{0}", p.Address.Line2);
+        }
+        else if (id == 4)
+        {
+            Hellow h = Serializer.Deserialize<Hellow>(new MemoryStream(data));
+            Debug.LogFormat("Hellow.msg:{0}", h.msg);
+        }
     }
  }

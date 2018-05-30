@@ -214,7 +214,7 @@ public class TCPConnection : TcpClient
                     networkStream.Write(data, 0, data.Length);
                     networkStream.Flush();
 
-                    Debug.Log("send done len:" + data.Length);
+                    Debug.Log("tcpConnection.send len:" + data.Length);
                 }
                 catch (Exception e)
                 {
