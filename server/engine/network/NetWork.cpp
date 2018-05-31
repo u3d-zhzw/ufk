@@ -208,52 +208,51 @@ NetWork::conn_readcb(struct bufferevent *bev, void *ctx)
     }
 
     struct evbuffer *input = bufferevent_get_input(bev);
-    size_t len = evbuffer_get_length(input);
-    printf("rec len:%d\n", (int)len);
-
-    if (len <= 0)
+    size_t recvLen = evbuffer_get_length(input);
+    if (recvLen < HEAD_SIZE)
     {
+        bufferevent_setwatermark(bev, EV_READ, HEAD_SIZE, 0); 
+        return;
+    }
+    
+    unsigned short pkgSize = 0;
+    struct evbuffer_ptr ptr;
+    evbuffer_ptr_set(input, &ptr, 5, EVBUFFER_PTR_SET);
+    evbuffer_copyout_from(input, &ptr, &pkgSize, 2);
+    pkgSize = ntohs(pkgSize);
+    if (recvLen < pkgSize)
+    {
+        bufferevent_setwatermark(bev, EV_READ, pkgSize, 0); 
         return ;
     }
 
-    char* buff= (char*) malloc(len);
-    int buffSize = evbuffer_remove(input, buff, len);
-    pNet->m_mapBevStream[bev].append(buff, buffSize);
-    free(buff);
+    char* data= (char*) malloc(pkgSize);
+    int buffSize = evbuffer_remove(input, data, pkgSize);
 
-    std::string& source = pNet->m_mapBevStream[bev];
-    size_t sourceSize = source.length();
+    unsigned char type = *((unsigned char*)data);
+    unsigned short id = ntohs(*((unsigned short*)(data + 1)));
+    unsigned short bodySize = ntohs(*((unsigned short*)(data + 3)));
+    //        unsigned short pkgSize = ntohs(*((unsigned short*)(data + 5)));
 
-    if (sourceSize > HEAD_SIZE)
+    // todo: 
+    // 1. deal with packet type
+    // 2. check crc
+    if (pNet->m_cbRecv != NULL)
     {
-        const char* data = source.data();
-        unsigned char type = *((unsigned char*)data);
-        unsigned short id = ntohs(*((unsigned short*)(data + 1)));
-        unsigned short bodySize = ntohs(*((unsigned short*)(data + 3)));
-        unsigned short pkgSize = ntohs(*((unsigned short*)(data + 5)));
-
-        // todo: 
-        // 1. deal with packet type
-        // 2. check crc
-        if (sourceSize >= pkgSize)
-        {
-            if (pNet->m_cbRecv != NULL)
-            {
-                pNet->m_cbRecv(session, id, data + HEAD_SIZE, bodySize);
-            }
-
-            source.erase(0, pkgSize);
-            
-            // deal with next packet
-            if (source.length() > 0)
-            {
-                conn_readcb(bev, ctx);
-            }
-        }
+        pNet->m_cbRecv(session, id, data + HEAD_SIZE, bodySize);
     }
+
+    // deal with next packet
+    recvLen = evbuffer_get_length(input);
+    if (recvLen > 0 )
+    {
+        conn_readcb(bev, ctx);
+    }
+
+    free(data);
 }
 
-void
+    void
 NetWork::conn_writecb(struct bufferevent *bev, void *user_data)
 {
    // struct evbuffer *output = bufferevent_get_output(bev);
@@ -393,3 +392,4 @@ struct bufferevent* NetWork::GetBufferevent(std::shared_ptr<Session> session)
 
     return itr->second;
 }
+
