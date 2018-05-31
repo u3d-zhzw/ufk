@@ -5,7 +5,6 @@
 
 #include "common/Defines.h"
 #include "network/NetWork.h"
-#include "network/NetPacket.h"
 #include "network/Session.h"
 
 
