@@ -5,6 +5,7 @@
 #include "pb/Person.pb.h"
 
 unsigned short HEAD_SIZE = 7;
+unsigned short PKG_MAX_SIZE = 1024;
 
 bool NetWork::Start()
 {
@@ -214,7 +215,7 @@ NetWork::conn_readcb(struct bufferevent *bev, void *ctx)
         bufferevent_setwatermark(bev, EV_READ, HEAD_SIZE, 0); 
         return;
     }
-    
+
     unsigned short pkgSize = 0;
     struct evbuffer_ptr ptr;
     evbuffer_ptr_set(input, &ptr, 5, EVBUFFER_PTR_SET);
@@ -225,6 +226,12 @@ NetWork::conn_readcb(struct bufferevent *bev, void *ctx)
         bufferevent_setwatermark(bev, EV_READ, pkgSize, 0); 
         return ;
     }
+
+    if (pkgSize >  PKG_MAX_SIZE)
+    {
+        printf("pkgSize over %d\n", PKG_MAX_SIZE);
+        return;
+    } 
 
     char* data= (char*) malloc(pkgSize);
     int buffSize = evbuffer_remove(input, data, pkgSize);
