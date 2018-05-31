@@ -10,9 +10,25 @@ using System.Net;
 class HallConnection
     : TCPConnection
 {
-    public const ushort PACKET_HEAD_SIZE = 7;
-    // body数据在头部偏移量的位置
-    public const ushort BODY_SIZE_OFFSET = 3;
+    /// <summary>
+    /// 包头长度
+    /// </summary>
+    public const ushort HEAD_SIZE = 7;
+
+    /// <summary>
+    /// body长度值，在包头的位置
+    /// </summary>
+    public const ushort HEAD_BODY_SIZE_OFFSET = 3;
+
+    /// <summary>
+    /// 协议包最大长度
+    /// </summary>
+    public const ushort PACKET_MAX_SIZE = 1024;
+
+    /// <summary>
+    /// 协议包，数据缓存最大长度
+    /// </summary>
+    public const ushort BODY_MAX_SIZE = PACKET_MAX_SIZE - HEAD_SIZE;
 
     public class Protocol
     {
@@ -28,7 +44,7 @@ class HallConnection
     private Dictionary<ushort, LinkedList<ProtocolResponseHandler>> dictProtocol = new Dictionary<ushort, LinkedList<ProtocolResponseHandler>>();
 
     private Queue<Protocol> protoQueue = new Queue<Protocol>();
-    byte[] pkgBuffer = new byte[1024];
+    byte[] pkgBuffer = new byte[PACKET_MAX_SIZE];
     private ushort remainPkgSize = 0;
 
     public void Connect(string ip, int port, System.Action cbConn = null, System.Action<bool> cbReconn = null)
@@ -38,9 +54,8 @@ class HallConnection
 
         base.SocketStateChangedEvent -= this.OnSocketStatusEvent;
         base.SocketStateChangedEvent += this.OnSocketStatusEvent;
-        this.ReceiveBufferSize = (int)PACKET_HEAD_SIZE;
-        this.remainPkgSize = 0;
 
+        this.ResetBuffer();
         base.Connect(ip, port);
     }
 
@@ -75,6 +90,12 @@ class HallConnection
         }
     }
 
+    public override void Disconnect()
+    {
+        this.ResetBuffer();
+        base.Disconnect();
+    }
+
     public void Send<T>(ushort id, T t)
     {
         byte[] bodyBuf = null;
@@ -85,7 +106,7 @@ class HallConnection
         }
 
         ushort bodySize = 0;
-        ushort pkgSize = (ushort)PACKET_HEAD_SIZE;
+        ushort pkgSize = (ushort)HEAD_SIZE;
         if (bodyBuf != null && bodyBuf.Length > 0)
         {
             bodySize = (ushort)bodyBuf.Length;
@@ -176,27 +197,47 @@ class HallConnection
         }
     }
 
+    private void ResetBuffer()
+    {
+        this.remainPkgSize = 0;
+        this.ReceiveBufferSize = HEAD_SIZE;
+    }
+
     public override void Receive()
     {
         NetworkStream stream = this.GetStream();
 
-        if (this.Available >= PACKET_HEAD_SIZE && this.remainPkgSize <= 0)
+        if (this.Available >= HEAD_SIZE && this.remainPkgSize <= 0)
         {
-            stream.Read(pkgBuffer, 0, (int)PACKET_HEAD_SIZE);
-            this.remainPkgSize  = BitConverter.ToUInt16(pkgBuffer, (int)BODY_SIZE_OFFSET);
+            stream.Read(pkgBuffer, 0, (int)HEAD_SIZE);
+            this.remainPkgSize  = BitConverter.ToUInt16(pkgBuffer, (int)HEAD_BODY_SIZE_OFFSET);
             this.remainPkgSize = (ushort)IPAddress.NetworkToHostOrder((short)this.remainPkgSize);
             this.ReceiveBufferSize = this.remainPkgSize;
+
+            if (this.remainPkgSize > BODY_MAX_SIZE)
+            {
+                Debug.LogErrorFormat("body length over {0}", BODY_MAX_SIZE);
+                this.Disconnect();
+            }
         }
 
         // 
         if (this.remainPkgSize > 0 && this.remainPkgSize <= this.Available)
         {
-            stream.Read(pkgBuffer, PACKET_HEAD_SIZE, this.remainPkgSize);
+            int size = System.Math.Min(this.remainPkgSize, BODY_MAX_SIZE);
+            stream.Read(pkgBuffer, HEAD_SIZE, size);
 
             byte type = pkgBuffer[0];
             ushort id = BitConverter.ToUInt16(pkgBuffer, 1);
             ushort bodySize = BitConverter.ToUInt16(pkgBuffer, 3);
             ushort pkgSize = BitConverter.ToUInt16(pkgBuffer, 5);
+
+            // invaid pack
+            if (type != 1)
+            {
+                this.Disconnect();
+                return;
+            }
 
             id = (ushort)IPAddress.HostToNetworkOrder((short)id);
             bodySize = (ushort)IPAddress.HostToNetworkOrder((short)bodySize);
@@ -204,15 +245,14 @@ class HallConnection
 
             // todo check crc
             byte[] bodyData = new byte[bodySize];
-            Array.Copy(pkgBuffer, PACKET_HEAD_SIZE, bodyData, 0, bodySize);
+            Array.Copy(pkgBuffer, HEAD_SIZE, bodyData, 0, bodySize);
 
             Protocol p = AllocProtocol();
             p.id = id;
             p.data = bodyData;
 
-            this.remainPkgSize = 0;
             this.protoQueue.Enqueue(p);
-            this.ReceiveBufferSize = PACKET_HEAD_SIZE; 
+            this.ResetBuffer();
 
             if (this.Available > 0)
             {

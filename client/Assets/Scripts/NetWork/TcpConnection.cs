@@ -91,7 +91,7 @@ public class TCPConnection : TcpClient
         this.SocketStateChanged(NetStatus.CONNECTING, "");
     }
 
-    public void Disconnect()
+    public virtual void Disconnect()
     {
         Debug.LogError("disconnect");
         this.Close();
