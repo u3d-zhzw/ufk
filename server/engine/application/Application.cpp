@@ -1,4 +1,6 @@
 #include "application/Application.h"
+#include "pb/Person.pb.h"
+#include "pb/Hellow.pb.h"
 
 using namespace std::placeholders;
 
@@ -45,10 +47,23 @@ void Application::ConnReceive(std::shared_ptr<Session> session, ProtcolId id, co
 {
     printf("id:%d\n", id);
     printf("sessionId:%d\n", session->id);
-    printf("data.len:%d\n", size);
     
     if (id == 1)
     {
+        Person p;
+        p.ParseFromArray(data, size);
+        printf("Person.id:%d\n", p.id());
+        printf("Person.name:%s\n", p.name().c_str());
+        printf("Person.Address.line1:%s\n", p.address().line1().c_str());
+        printf("Person.Address.line2:%s\n", p.address().line2().c_str());
+
         this->m_net->Send(session, 2, (void*)data, size);
+    }
+    else if (id == 3)
+    {
+        Hellow h;
+        h.ParseFromArray(data, size);
+        printf("Hellow.msg:%s\n", h.msg().c_str());
+        this->m_net->Send(session, 4, (void*)data, size);
     }
 }

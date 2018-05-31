@@ -209,6 +209,7 @@ NetWork::conn_readcb(struct bufferevent *bev, void *ctx)
 
     struct evbuffer *input = bufferevent_get_input(bev);
     size_t len = evbuffer_get_length(input);
+    printf("rec len:%d\n", (int)len);
 
     if (len <= 0)
     {
