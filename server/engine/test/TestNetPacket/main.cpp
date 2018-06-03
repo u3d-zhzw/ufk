@@ -3,14 +3,14 @@
 #include <time.h>  
 
 #include "common/Timer.h" 
-#include "network/NetWork.h"
+#include "network/TcpConnection.h"
 #include "pb/Hellow.pb.h"
 #include "pb/Person.pb.h"
 
 
 using namespace std::placeholders;
 
-NetWork net; 
+TcpConnection conn; 
 std::shared_ptr<Session> session;
 
 std::string gen_random(const int len) 
@@ -50,14 +50,14 @@ void RandPacket()
         adr.set_line2(gen_random(rand() % len_mod));
 
         *(person.mutable_address()) = adr;
-        net.Send(session, id, &person);
+        conn.Send(session, id, &person);
     }
     else
     {
         Hellow h;
         h.set_msg(gen_random(rand() % len_mod));
         msg = &h;
-        net.Send(session, id, &h);
+        conn.Send(session, id, &h);
     }
 }
 
@@ -76,13 +76,13 @@ main()
     Timer t;
     t.create(0, 1000, RandPacket);
 
-    net.Start();
+    conn.Start();
     NetReceiveDef cbRecv = std::bind(DealNetRecv, _1, _2, _3, _4);
-    session = net.Connect("127.0.0.1", 56789, NULL, cbRecv);
+    session = conn.Connect("127.0.0.1", 56789, NULL, cbRecv);
 
     while(true)
     {
-        net.Loop();    
+        conn.Loop();    
     }
 
     return 0;

@@ -7,21 +7,20 @@
 class Session;
 class NetPacket;
 
-
 typedef unsigned int SessionId;
 typedef unsigned short ProtcolId;
 
 /**
  * @breif 网络状态
  */
-enum E_TCPCONNSATUS
+enum ConnectionStatus
 {
-    CONNECTED,
-    CLOSE,
-    MAX,
+    kConnected,
+    kClose,
+    kCount,
 };
 
-typedef std::function<void(E_TCPCONNSATUS)> NetStatueDef;
-typedef std::function<void(std::shared_ptr<Session>, ProtcolId id, const void* data, unsigned short size)> NetReceiveDef;
+typedef std::function<void(ConnectionStatus)> NetStatueDef;
+typedef std::function<void(std::shared_ptr<Session>, ProtcolId id, const void *data, unsigned short size)> NetReceiveDef;
 
 #endif //__DEFINES_H

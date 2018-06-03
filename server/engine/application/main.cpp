@@ -3,8 +3,7 @@
 
 #include "application/Application.h"
 
-int
-main(int argc, char** argv)
+int main(int argc, char** argv)
 {
     printf("---\n");
     fprintf(stderr, "pid:%d\n", (int)getpid());

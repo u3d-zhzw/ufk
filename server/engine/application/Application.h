@@ -4,9 +4,8 @@
 #include <memory>
 
 #include "common/Defines.h"
-#include "network/NetWork.h"
+#include "network/TcpConnection.h"
 #include "network/Session.h"
-
 
 class Application
 {
@@ -16,12 +15,12 @@ public:
        virtual void Loop();
 
 public:
-       void Send(std::shared_ptr<Session> session, short id, ::google::protobuf::MessageLite* msg);
+       void Send(std::shared_ptr<Session> session, short id, ::google::protobuf::MessageLite *msg);
 
 private:
-       void ConnReceive(std::shared_ptr<Session> session, ProtcolId id, const void* data, unsigned short size);
+       void ConnReceive(std::shared_ptr<Session> session, ProtcolId id, const void *data, unsigned short size);
 
 private:
-    NetWork* m_net;
+    TcpConnection* tcp_conn_;
 };
 #endif //__APPLICATION_H
