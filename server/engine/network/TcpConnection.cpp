@@ -5,6 +5,7 @@
 #include "pb/Person.pb.h"
 
 unsigned short HEAD_SIZE = 7;
+unsigned short PKG_SIZE_OFFSET = 5;
 unsigned short PKG_MAX_SIZE = 1024;
 
 bool TcpConnection::Start()
@@ -217,10 +218,10 @@ TcpConnection::conn_readcb(struct bufferevent *bev, void *ctx)
     }
 
     struct evbuffer_ptr ptr;
-    evbuffer_ptr_set(input, &ptr, 5, EVBUFFER_PTR_SET);
+    evbuffer_ptr_set(input, &ptr, PKG_SIZE_OFFSET, EVBUFFER_PTR_SET);
 
     unsigned short pkg_size = 0;
-    evbuffer_copyout_from(input, &ptr, &pkg_size, 2);
+    evbuffer_copyout_from(input, &ptr, &pkg_size, sizeof(pkg_size));
     pkg_size = ntohs(pkg_size);
 
     if (recv_len < pkg_size)
