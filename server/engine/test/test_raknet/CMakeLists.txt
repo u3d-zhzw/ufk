@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 2.6)
+
+PROJECT(testNetRakNet)
+
+SET(PROJ_ROOT ${PROJECT_SOURCE_DIR}/../..)
+
+SET(CLIENT_SRC client.cpp)
+SET(SERVER_SRC server.cpp)
+
+SET(CMAKE_CXX_COMPILER "g++")
+SET(CMAKE_CXX_FLAGS "-fPIC -std=c++11 -g -w -pthread")
+
+INCLUDE_DIRECTORIES(${PROJ_ROOT})
+INCLUDE_DIRECTORIES(${PROJ_ROOT}/3rdParty/include)
+LINK_DIRECTORIES(${PROJ_ROOT}/3rdParty/lib)
+
+ADD_EXECUTABLE(client ${CLIENT_SRC})
+ADD_EXECUTABLE(server ${SERVER_SRC})
+
+TARGET_LINK_LIBRARIES(client rt RakNetLibStatic)
+TARGET_LINK_LIBRARIES(server rt RakNetLibStatic)
