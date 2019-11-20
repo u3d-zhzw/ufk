@@ -9,118 +9,118 @@ using System.Net.Sockets;
 
 public class TestProtoclBuffer : MonoBehaviour
 {
-	[ProtoContract]
-	public class Person {
-		[ProtoMember(1)]
-		public int Id {get;set;}
-		[ProtoMember(2)]
-		public string Name {get;set;}
-		[ProtoMember(3)]
-		public Address Address {get;set;}
-	}
-	[ProtoContract]
-	public class Address {
-		[ProtoMember(1)]
-		public string Line1 {get;set;}
-		[ProtoMember(2)]
-		public string Line2 {get;set;}
-	}
+	// [ProtoContract]
+	// public class Person {
+	// 	[ProtoMember(1)]
+	// 	public int Id {get;set;}
+	// 	[ProtoMember(2)]
+	// 	public string Name {get;set;}
+	// 	[ProtoMember(3)]
+	// 	public Address Address {get;set;}
+	// }
+	// [ProtoContract]
+	// public class Address {
+	// 	[ProtoMember(1)]
+	// 	public string Line1 {get;set;}
+	// 	[ProtoMember(2)]
+	// 	public string Line2 {get;set;}
+	// }
 
-    private HallConnection conn = null;
-
-
-	public void Awake()
-	{
-    //    int i = 3;
-        TestNet();
-	}
-
-    public void OnDestroy()
-    {
-        if (this.conn != null)
-        {
-            this.conn.Disconnect();
-        }
-    }
-
-    public void TestNet()
-    {
-        var person = new Person
-        {
-            Id = 12345,
-            Name = "Fred",
-            Address = new Address
-            {
-                Line1 = "Flat 1",
-                Line2 = "The Meadows"
-            }
-        };
-
-        byte[] data = null;
-        using (MemoryStream memStream = new MemoryStream())
-        {
-            Serializer.Serialize(memStream, person);
-            data = memStream.ToArray();
-        }
-
-        if (data == null || data.Length <= 0)
-        {
-            Debug.LogError("data is empty");
-            return ;
-        }
-
-        this.conn = new HallConnection();
-        this.conn.Connect("47.106.66.32", 56789, () =>
-        {
-            Debug.LogError("callback");
-            this.conn.Send(data);
-        });
-    }
-
-    public void TestProto()
-	{
-		var person = new Person {
-			Id = 12345, Name = "Fred",
-			Address = new Address {
-				Line1 = "Flat 1",
-				Line2 = "The Meadows"
-			}
-		};
+    // private HallConnection conn = null;
 
 
-		string path = "person.bin";
+	// public void Awake()
+	// {
+    // //    int i = 3;
+    //     TestNet();
+	// }
 
-		this.Write(person,path);
-		this.Read(path);
-	}
+    // public void OnDestroy()
+    // {
+    //     if (this.conn != null)
+    //     {
+    //         this.conn.Disconnect();
+    //     }
+    // }
 
-	public void Write(Person person, string path)
-	{
-		using (var file = File.Create(path)) {
-			Serializer.Serialize(file, person);
-		}
-	}
+    // public void TestNet()
+    // {
+    //     var person = new Person
+    //     {
+    //         Id = 12345,
+    //         Name = "Fred",
+    //         Address = new Address
+    //         {
+    //             Line1 = "Flat 1",
+    //             Line2 = "The Meadows"
+    //         }
+    //     };
 
-	public void Read(string path)
-	{
-		Person newPerson;
-		using (var file = File.OpenRead(path)) {
-			newPerson = Serializer.Deserialize<Person>(file);
-		}
+    //     byte[] data = null;
+    //     using (MemoryStream memStream = new MemoryStream())
+    //     {
+    //         Serializer.Serialize(memStream, person);
+    //         data = memStream.ToArray();
+    //     }
 
-		Debug.Log("Id:" + newPerson.Id);
-		Debug.Log("Name:" + newPerson.Name);
-		Debug.Log("Address.Line1:" + newPerson.Address.Line1);
-		Debug.Log("Address.Line2:" + newPerson.Address.Line2);
-		//Debug.Log("Phone.Number:" + p.Phones.Number);
-		//Debug.Log("Phone.Type:" + p.Phones.Type);
-	}
+    //     if (data == null || data.Length <= 0)
+    //     {
+    //         Debug.LogError("data is empty");
+    //         return ;
+    //     }
 
-    private void Update()
-    {
-        if (this.conn != null)
-        {
-            this.conn.Update();
-        }
-    }
+    //     this.conn = new HallConnection();
+    //     this.conn.Connect("47.106.66.32", 56789, () =>
+    //     {
+    //         Debug.LogError("callback");
+    //         this.conn.Send(data);
+    //     });
+    // }
+
+    // public void TestProto()
+	// {
+	// 	var person = new Person {
+	// 		Id = 12345, Name = "Fred",
+	// 		Address = new Address {
+	// 			Line1 = "Flat 1",
+	// 			Line2 = "The Meadows"
+	// 		}
+	// 	};
+
+
+	// 	string path = "person.bin";
+
+	// 	this.Write(person,path);
+	// 	this.Read(path);
+	// }
+
+	// public void Write(Person person, string path)
+	// {
+	// 	using (var file = File.Create(path)) {
+	// 		Serializer.Serialize(file, person);
+	// 	}
+	// }
+
+	// public void Read(string path)
+	// {
+	// 	Person newPerson;
+	// 	using (var file = File.OpenRead(path)) {
+	// 		newPerson = Serializer.Deserialize<Person>(file);
+	// 	}
+
+	// 	Debug.Log("Id:" + newPerson.Id);
+	// 	Debug.Log("Name:" + newPerson.Name);
+	// 	Debug.Log("Address.Line1:" + newPerson.Address.Line1);
+	// 	Debug.Log("Address.Line2:" + newPerson.Address.Line2);
+	// 	//Debug.Log("Phone.Number:" + p.Phones.Number);
+	// 	//Debug.Log("Phone.Type:" + p.Phones.Type);
+	// }
+
+    // private void Update()
+    // {
+    //     if (this.conn != null)
+    //     {
+    //         this.conn.Update();
+    //     }
+    // }
 }
