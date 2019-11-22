@@ -12,7 +12,7 @@ namespace UFKCore
         private ILogHandler unityLogHandler = null;
         private Thread writeThread = null;
         private bool writeThreadRuning = false;
-        private StreamWriter logWriter = null;
+        private DebugWriter dbWriter = null;
         private LinkedList<string> backgroundLogList = new LinkedList<string>();
         private LinkedList<string> frontgroundLogList = new LinkedList<string>();
 
@@ -20,7 +20,7 @@ namespace UFKCore
         {
             try
             {
-                this.logWriter = new StreamWriter(logFile, true, System.Text.Encoding.UTF8);
+                this.dbWriter = new DebugWriter(logFile);
             }
             catch (Exception e)
             {
@@ -29,26 +29,17 @@ namespace UFKCore
             }
             finally
             {
-                if (logWriter != null)
+                if (dbWriter != null)
                 {
-                    logWriter.Dispose();
+                    dbWriter.Dispose();
                 }
             }
 
-                // lock (sw)
-                // {
-                //     //开始写入
-                //     sw.WriteLine(msg);
-                //     //清空缓冲区
-                //     sw.Flush();
-                //     //关闭流
-                //     sw.Close();
-                // }
-
-            this.writeThread = new Thread(this.WriteLogThread);
-            this.writeThreadRuning = true;
-
             this.unityLogHandler = unityLogHandler;
+
+            this.writeThreadRuning = true;
+            this.writeThread = new Thread(this.WriteLogThread);
+            this.writeThread.Start();
         }
 
         protected virtual void Dispose(bool disposing)
@@ -57,11 +48,11 @@ namespace UFKCore
 
             if (disposing)
             {
-                if (this.logWriter != null)
+                if (this.dbWriter != null)
                 {
-                    this.logWriter.Dispose();
+                    this.dbWriter.Dispose();
                 }
-                this.logWriter = null;
+                this.dbWriter = null;
 
                 if (this.writeThread != null)
                 {
@@ -78,12 +69,28 @@ namespace UFKCore
             this.Dispose(true);
         }
 
-
         private void WriteLogThread()
         {
             while(this.writeThreadRuning && Application.isPlaying)
             {
-                
+                if (this.backgroundLogList.Count <= 0)
+                {
+                    continue;
+                }
+
+                lock(this.frontgroundLogList)
+                {
+                    var tmp = this.frontgroundLogList;
+                    this.frontgroundLogList = this.backgroundLogList;
+                    this.backgroundLogList = tmp;
+                }
+
+                var itr = this.frontgroundLogList.First;
+                while (itr != null)
+                {
+                    this.dbWriter.Write(itr.Value);
+                    itr = itr.Next;
+                }
             }
         }
 
@@ -94,12 +101,10 @@ namespace UFKCore
 #endif
             if (this.writeThreadRuning)
             {
-                // todo: 
-                // 1. 字符池尝试使用缓存池
-                // 2. 分类Tag
-                // 3. 无锁队列
-                
-                this.backgroundLogList.AddLast(string.Format(format, args));
+                lock(this.backgroundLogList)
+                {
+                    this.backgroundLogList.AddLast(string.Format(format, args));
+                }
             }
         }
 
@@ -110,20 +115,22 @@ namespace UFKCore
 #endif
             if (this.writeThreadRuning)
             {
-                // todo: 
-                // 1. 字符池尝试使用缓存池
-                // 2. 分类Tag
-                // 3. 无锁队列
-                this.backgroundLogList.AddLast(exception.ToString());
+                lock (this.backgroundLogList)
+                {
+                    this.backgroundLogList.AddLast(exception.ToString());
+                }
             }
         }
     }
 
     public static class DebugHelper
     {
+        public static string LOG_FILE = Application.persistentDataPath + "/myLog.txt";
+
         public static void Startup()
         {
-            // Debug.unityLogger.logHandler = new UFKCore.DebugHandler(Debug.unityLogger.logHandler);
+            Debug.unityLogger.logHandler = new UFKCore.DebugHandler(Debug.unityLogger.logHandler, LOG_FILE);
+            Debug.Log("LOG_FILE: " + LOG_FILE );
         }
 
         public static bool logEnabled
