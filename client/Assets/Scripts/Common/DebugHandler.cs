@@ -25,15 +25,20 @@ namespace UFKCore
             catch (Exception e)
             {
                 Debug.LogWarning("文件操作失败 " + e.ToString());
+                if (this.dbWriter != null)
+                {
+                    this.dbWriter.Dispose();
+                }
                 return;
             }
-            finally
-            {
-                if (dbWriter != null)
-                {
-                    dbWriter.Dispose();
-                }
-            }
+            // finally
+            // {
+            //     if (dbWriter != null)
+            //     {
+            //         dbWriter.Dispose();
+            //     }
+            //     Debug.Log("dispose");
+            // }
 
             this.unityLogHandler = unityLogHandler;
 
@@ -71,7 +76,8 @@ namespace UFKCore
 
         private void WriteLogThread()
         {
-            while(this.writeThreadRuning && Application.isPlaying)
+            Debug.Log("start thread");
+            while(this.writeThreadRuning)
             {
                 if (this.backgroundLogList.Count <= 0)
                 {
@@ -91,7 +97,10 @@ namespace UFKCore
                     this.dbWriter.Write(itr.Value);
                     itr = itr.Next;
                 }
+
+                this.frontgroundLogList.Clear();
             }
+            Debug.Log("end thread");
         }
 
         public void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args)
@@ -127,10 +136,38 @@ namespace UFKCore
     {
         public static string LOG_FILE = Application.persistentDataPath + "/myLog.txt";
 
+        private static ILogHandler _unityLogHdlr = null;
+        private static UFKCore.DebugHandler hdlr = null;
+
         public static void Startup()
         {
-            Debug.unityLogger.logHandler = new UFKCore.DebugHandler(Debug.unityLogger.logHandler, LOG_FILE);
-            Debug.Log("LOG_FILE: " + LOG_FILE );
+            if (_unityLogHdlr == null)
+            {
+                _unityLogHdlr = Debug.unityLogger.logHandler;
+            }
+
+            if (hdlr == null)
+            {
+                hdlr = new UFKCore.DebugHandler(_unityLogHdlr, LOG_FILE);
+            }
+
+            // 如果已经设置
+            if (Debug.unityLogger.logHandler == hdlr)
+            {
+                return;
+            }
+
+            Debug.unityLogger.logHandler = hdlr;
+            Debug.Log("LOG_FILE: " + LOG_FILE);
+        }
+
+        public static void Release()
+        {
+            if (hdlr != null)
+            {
+                hdlr.Dispose();
+            }
+            hdlr = null;
         }
 
         public static bool logEnabled
