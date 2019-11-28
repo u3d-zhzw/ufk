@@ -13,5 +13,8 @@ Sprite
 ![](https://raw.githubusercontent.com/lizijie/MyImageHosting/master/uguiext/sprite_icon_1.png)
 ![](https://raw.githubusercontent.com/lizijie/MyImageHosting/master/uguiext/sprite_icon_2.png)
 
+2. 扫描非tile类型警告。日常构建流程扫描工程界面prefab，检查这类型警告
+![](https://raw.githubusercontent.com/lizijie/MyImageHosting/master/uguiext/sprite_tile_issue.png)
+
 其它
 https://lizijie.github.io/2019/05/23/ugui%E9%9D%9E%E5%B8%B8%E4%B8%8D%E5%8F%8B%E5%A5%BD.html
