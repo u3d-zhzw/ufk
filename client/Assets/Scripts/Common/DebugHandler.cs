@@ -9,42 +9,41 @@ namespace UFKCore
 {
     public class DebugHandler : ILogHandler
     {
+        // LOG_FLUSH_SIZE长度写一次磁盘
+        private const long LOG_FLUSH_SIZE = 1024 * 1024;
+        // LOG_FLUSH_INTERAL秒写一次磁盘
+        private const long LOG_FLUSH_INTERAL = 10000000;
+
         private ILogHandler unityLogHandler = null;
         private Thread writeThread = null;
         private bool writeThreadRuning = false;
-        private DebugWriter dbWriter = null;
+        private DebugWriter writer = null;
         private LinkedList<string> backgroundLogList = new LinkedList<string>();
         private LinkedList<string> frontgroundLogList = new LinkedList<string>();
 
         public DebugHandler(ILogHandler unityLogHandler, string logFile)
         {
+            this.writeThreadRuning = false;
+
             try
             {
-                this.dbWriter = new DebugWriter(logFile);
+                this.writer = new DebugWriter(logFile);
             }
             catch (Exception e)
             {
                 Debug.LogWarning("文件操作失败 " + e.ToString());
-                if (this.dbWriter != null)
+                if (this.writer != null)
                 {
-                    this.dbWriter.Dispose();
+                    this.writer.Dispose();
                 }
                 return;
             }
-            // finally
-            // {
-            //     if (dbWriter != null)
-            //     {
-            //         dbWriter.Dispose();
-            //     }
-            //     Debug.Log("dispose");
-            // }
 
             this.unityLogHandler = unityLogHandler;
 
-            this.writeThreadRuning = true;
             this.writeThread = new Thread(this.WriteLogThread);
             this.writeThread.Start();
+            this.writeThreadRuning = true;
         }
 
         protected virtual void Dispose(bool disposing)
@@ -53,11 +52,11 @@ namespace UFKCore
 
             if (disposing)
             {
-                if (this.dbWriter != null)
+                if (this.writer != null)
                 {
-                    this.dbWriter.Dispose();
+                    this.writer.Dispose();
                 }
-                this.dbWriter = null;
+                this.writer = null;
 
                 if (this.writeThread != null)
                 {
@@ -77,11 +76,25 @@ namespace UFKCore
         private void WriteLogThread()
         {
             Debug.Log("start thread");
+            long lastTime = DateTime.UtcNow.Ticks;
+
             while(this.writeThreadRuning)
             {
                 if (this.backgroundLogList.Count <= 0)
                 {
-                    continue;
+                    // 空间时，检查是否有日志未写磁盘
+                    if (this.writer != null && this.writer.Length > 0)
+                    {
+                        long nowTime = DateTime.UtcNow.Ticks;
+                        if (nowTime - lastTime > LOG_FLUSH_INTERAL)
+                        {
+                            // this.unityLogHandler.LogFormat(LogType.Log, null, "Flush as log thread idled {0}", this.writer.Length);
+                            this.writer.Flush();
+
+                            lastTime = nowTime;
+                        }
+                    }
+                   continue;
                 }
 
                 lock(this.frontgroundLogList)
@@ -94,7 +107,14 @@ namespace UFKCore
                 var itr = this.frontgroundLogList.First;
                 while (itr != null)
                 {
-                    this.dbWriter.Write(itr.Value);
+                    this.writer.Write(itr.Value);
+                    // this.unityLogHandler.LogFormat(LogType.Log, null, "len: {0}", this.writer.Length);
+                    if (this.writer.Length > LOG_FLUSH_SIZE)
+                    {
+                        this.writer.Flush();
+                        // this.unityLogHandler.LogFormat(LogType.Error, null, "len: {0}", this.writer.Length);
+                    }
+
                     itr = itr.Next;
                 }
 
@@ -103,13 +123,40 @@ namespace UFKCore
             Debug.Log("end thread");
         }
 
+        private void RawLogFormat(LogType logType, string format, params object[] args)
+        {
+            if (this.unityLogHandler != null)
+            {
+                this.unityLogHandler.LogFormat(logType, null, format, args);
+            }
+        }
+
+        private void RawLogException(Exception exception, UnityEngine.Object context)
+        {
+            if (this.unityLogHandler != null)
+            {
+                this.unityLogHandler.LogException(exception, null);
+            }
+
+        }
+
         public void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args)
         {
-#if UNITY_EDITOR
             this.unityLogHandler.LogFormat(logType, context, format, args);
-#endif
+
             if (this.writeThreadRuning)
             {
+                // StackFrame[] stacks = new StackTrace().GetFrames();
+                // string result = str + "\r\n";
+
+                // if (stacks != null)
+                // {
+                //     for (int i = 0; i < stacks.Length; i++)
+                //     {
+                //         result += string.Format("{0} {1}\r\n", stacks[i].GetFileName(), stacks[i].GetMethod().ToString());
+                //         //result += stacks[i].ToString() + "\r\n";
+                //     }
+                // }
                 lock(this.backgroundLogList)
                 {
                     this.backgroundLogList.AddLast(string.Format(format, args));
@@ -119,9 +166,8 @@ namespace UFKCore
 
         public void LogException(Exception exception, UnityEngine.Object context)
         {
-#if UNITY_EDITOR
             this.unityLogHandler.LogException(exception, context);
-#endif
+
             if (this.writeThreadRuning)
             {
                 lock (this.backgroundLogList)

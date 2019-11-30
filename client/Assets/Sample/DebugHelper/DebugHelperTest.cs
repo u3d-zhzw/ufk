@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 
 public class DebugHelperTest : MonoBehaviour
@@ -9,15 +10,20 @@ public class DebugHelperTest : MonoBehaviour
     {
         UFKCore.DebugHelper.Startup();
         UFKCore.DebugHelper.logEnabled = true;
-        Debug.Log("t1");
+
+        this.Print();
+        new Thread(this.Print).Start();
+        new Thread(this.Print).Start();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void Print()
     {
-        
+        for (int i = 0, iMax = 999; i < iMax; ++i)
+        {
+            Debug.Log(i);
+        }
     }
-
+    
     private void OnApplicationQuit()
     {
         UFKCore.DebugHelper.Release();

@@ -9,8 +9,11 @@ public class DebugWriter
     private StreamWriter writer = null;
     private string logFile = null;
 
+    public long Length { get; set; }
+
     public DebugWriter(string logFile)
     {
+        this.Length = 0;    
         this.writer = new StreamWriter(logFile, true, System.Text.Encoding.UTF8);
     }
 
@@ -20,6 +23,7 @@ public class DebugWriter
         {
             if (this.writer != null)
             {
+                this.Length = 0;    
                 this.writer.Close();
                 this.writer.Dispose();
             }
@@ -36,13 +40,29 @@ public class DebugWriter
 
     public void Write(string value)
     {
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+        
         // todo: 
         // 1. 字符池尝试使用缓存池
         // 2. 分类Tag
-        // 3. 限制每帧输出过多的Log
 
-        this.writer.WriteLine("from DebugWriter" +  value);
-        // todo: 缓存value，达到一个buffer size再flush
-        this.writer.Flush();
+        if (this.writer != null)
+        {
+            this.writer.WriteLine("[%s] %s\t%s", DateTime.Now.ToString("HH:mm:ss:fff"), "Log", value);
+        }
+
+        this.Length += value.Length;
+    }
+
+    public void Flush()
+    {
+        if (this.writer != null && this.Length > 0)
+        {
+            this.writer.Flush();
+            this.Length = 0;
+        }
     }
 }
