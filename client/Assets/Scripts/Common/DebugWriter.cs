@@ -13,6 +13,12 @@ public class DebugWriter
 
     public DebugWriter(string logFile)
     {
+        string dir = Path.GetDirectoryName(logFile);
+        if (!Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
         this.Length = 0;    
         this.writer = new StreamWriter(logFile, true, System.Text.Encoding.UTF8);
     }
@@ -51,7 +57,7 @@ public class DebugWriter
 
         if (this.writer != null)
         {
-            this.writer.WriteLine("[%s] %s\t%s", DateTime.Now.ToString("HH:mm:ss:fff"), "Log", value);
+            this.writer.WriteLine("[{0}] {1}", DateTime.Now.ToString("HH:mm:ss:fff"), value);
         }
 
         this.Length += value.Length;

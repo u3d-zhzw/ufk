@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Collections;
 using System.Collections.Generic;
+
 using UnityEngine;
 
 namespace UFKCore
@@ -15,11 +16,13 @@ namespace UFKCore
         private const long LOG_FLUSH_INTERAL = 10000000;
 
         private ILogHandler unityLogHandler = null;
+
         private Thread writeThread = null;
         private bool writeThreadRuning = false;
         private DebugWriter writer = null;
-        private LinkedList<string> backgroundLogList = new LinkedList<string>();
-        private LinkedList<string> frontgroundLogList = new LinkedList<string>();
+
+        private LinkedList<string> backList = new LinkedList<string>();
+        private LinkedList<string> frontList = new LinkedList<string>();
 
         public DebugHandler(ILogHandler unityLogHandler, string logFile)
         {
@@ -38,6 +41,7 @@ namespace UFKCore
                 }
                 return;
             }
+            Debug.LogFormat("logFile: {0}", logFile);
 
             this.unityLogHandler = unityLogHandler;
 
@@ -80,7 +84,7 @@ namespace UFKCore
 
             while(this.writeThreadRuning)
             {
-                if (this.backgroundLogList.Count <= 0)
+                if (this.backList.Count <= 0)
                 {
                     // 空间时，检查是否有日志未写磁盘
                     if (this.writer != null && this.writer.Length > 0)
@@ -97,14 +101,14 @@ namespace UFKCore
                    continue;
                 }
 
-                lock(this.frontgroundLogList)
+                lock(this.frontList)
                 {
-                    var tmp = this.frontgroundLogList;
-                    this.frontgroundLogList = this.backgroundLogList;
-                    this.backgroundLogList = tmp;
+                    var tmp = this.frontList;
+                    this.frontList = this.backList;
+                    this.backList = tmp;
                 }
 
-                var itr = this.frontgroundLogList.First;
+                var itr = this.frontList.First;
                 while (itr != null)
                 {
                     this.writer.Write(itr.Value);
@@ -118,7 +122,7 @@ namespace UFKCore
                     itr = itr.Next;
                 }
 
-                this.frontgroundLogList.Clear();
+                this.frontList.Clear();
             }
             Debug.Log("end thread");
         }
@@ -137,42 +141,55 @@ namespace UFKCore
             {
                 this.unityLogHandler.LogException(exception, null);
             }
+        }
 
+        private void _Log(LogType logType, string format, params object[] args)
+        {
+            lock (this.backList)
+            {
+                System.Diagnostics.StackFrame[] stacks = new System.Diagnostics.StackTrace(1, true).GetFrames();
+                if (stacks != null && stacks.Length > 0)
+                {
+                    System.Diagnostics.StackFrame frame = stacks[0];
+                    string v1 = string.Format("{0} {1}:{2}", 
+                                            logType, 
+                                            frame.GetFileName(),
+                                            frame.GetFileLineNumber());
+                    string v2 = string.Format(format, args);
+                    this.backList.AddLast(string.Format("{0} {1}",v1, v2));
+                }
+                else
+                {
+                    this.backList.AddLast(string.Format(format, args));
+                }
+            }
         }
 
         public void LogFormat(LogType logType, UnityEngine.Object context, string format, params object[] args)
         {
-            this.unityLogHandler.LogFormat(logType, context, format, args);
+            if (this.unityLogHandler != null)
+            {
+                this.unityLogHandler.LogFormat(logType, context, format, args);
+            }
 
             if (this.writeThreadRuning)
             {
-                // StackFrame[] stacks = new StackTrace().GetFrames();
-                // string result = str + "\r\n";
-
-                // if (stacks != null)
-                // {
-                //     for (int i = 0; i < stacks.Length; i++)
-                //     {
-                //         result += string.Format("{0} {1}\r\n", stacks[i].GetFileName(), stacks[i].GetMethod().ToString());
-                //         //result += stacks[i].ToString() + "\r\n";
-                //     }
-                // }
-                lock(this.backgroundLogList)
-                {
-                    this.backgroundLogList.AddLast(string.Format(format, args));
-                }
+                this._Log(logType, format, args);
             }
         }
 
         public void LogException(Exception exception, UnityEngine.Object context)
         {
-            this.unityLogHandler.LogException(exception, context);
+            if (this.unityLogHandler != null)
+            {
+                this.unityLogHandler.LogException(exception, context);
+            }
 
             if (this.writeThreadRuning)
             {
-                lock (this.backgroundLogList)
+                lock (this.backList)
                 {
-                    this.backgroundLogList.AddLast(exception.ToString());
+                    this._Log(LogType.Exception, exception.ToString());
                 }
             }
         }
@@ -180,40 +197,57 @@ namespace UFKCore
 
     public static class DebugHelper
     {
-        public static string LOG_FILE = Application.persistentDataPath + "/myLog.txt";
+        private static ILogHandler unityHdl = null;
+        private static UFKCore.DebugHandler ufkHdl = null;
 
-        private static ILogHandler _unityLogHdlr = null;
-        private static UFKCore.DebugHandler hdlr = null;
+        public static string LogFilePath
+        {
+            get; set;
+        }
 
         public static void Startup()
         {
-            if (_unityLogHdlr == null)
+            // 缓存Unity内存处理实例
+            if (unityHdl == null)
             {
-                _unityLogHdlr = Debug.unityLogger.logHandler;
+                unityHdl = Debug.unityLogger.logHandler;
             }
 
-            if (hdlr == null)
+            // 自定义日志处理实例
+            if (ufkHdl == null)
             {
-                hdlr = new UFKCore.DebugHandler(_unityLogHdlr, LOG_FILE);
+                if (string.IsNullOrEmpty(LogFilePath))
+                {
+                    LogFilePath = GenDefaultLogFilePath();
+                }
+                ufkHdl = new UFKCore.DebugHandler(unityHdl, LogFilePath);
             }
 
             // 如果已经设置
-            if (Debug.unityLogger.logHandler == hdlr)
+            if (Debug.unityLogger.logHandler == ufkHdl)
             {
                 return;
             }
 
-            Debug.unityLogger.logHandler = hdlr;
-            Debug.Log("LOG_FILE: " + LOG_FILE);
+            Debug.unityLogger.logHandler = ufkHdl;
+        }
+
+        public static string GenDefaultLogFilePath()
+        {
+            DateTime now = DateTime.Now;
+            return string.Format("{0}/{1}/{2}.log", 
+                        Application.persistentDataPath, 
+                        now.ToString("MMdd"), 
+                        now.ToString("HHmmss"));
         }
 
         public static void Release()
         {
-            if (hdlr != null)
+            if (ufkHdl != null)
             {
-                hdlr.Dispose();
+                ufkHdl.Dispose();
             }
-            hdlr = null;
+            ufkHdl = null;
         }
 
         public static bool logEnabled
