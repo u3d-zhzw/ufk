@@ -11,8 +11,9 @@ public class DebugHelperTest : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        UFKCore.DebugHelper.Startup();
-        UFKCore.DebugHelper.logEnabled = true;
+        UFK.DebugUtils.logEnabled = true;
+        UFK.DebugUtils.Startup();
+        Debug.LogFormat("LogFilePath: {0}", UFK.DebugUtils.LogFilePath);
 
         this.Print();
         new Thread(this.Print).Start();
@@ -32,6 +33,6 @@ public class DebugHelperTest : MonoBehaviour
     
     private void OnApplicationQuit()
     {
-        UFKCore.DebugHelper.Release();
+        UFK.DebugUtils.Release();
     }
 }
