@@ -82,7 +82,7 @@ namespace UFK
         {
             lock (s_lockFlag)
             {
-                s_writer.Write(string.Format("{0}\n{1}", condition, stackTrace));
+                s_writer.Write(condition, stackTrace, type);
                 s_writer.Flush();
             }
         }

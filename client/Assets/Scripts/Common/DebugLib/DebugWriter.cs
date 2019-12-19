@@ -44,22 +44,61 @@ public class DebugWriter
         this.Dispose(true);
     }
 
+    private static string ToLogTypeString(LogType type)
+    {
+        switch (type)
+        {
+            case LogType.Log:
+                return "[L]";
+            case LogType.Warning:
+                return "[W]";
+            case LogType.Error:
+                return "[E]";
+            case LogType.Exception:
+                return "[X]";
+            case LogType.Assert:
+                return "[A]";
+                // default:
+                // return "UNKNOW";
+        }
+        return "UNKNOW";
+    }
+
     public void Write(string value)
     {
         if (string.IsNullOrEmpty(value))
         {
             return;
         }
-        
+
         // todo: 
         // 1. 字符池尝试使用缓存池
 
         if (this.writer != null)
         {
-            this.writer.WriteLine("[{0}] {1}", DateTime.Now.ToString("HH:mm:ss:fff"), value);
+            this.writer.WriteLine(value);
+
+            // this.writer.WriteLine("[{0}] {1}", DateTime.Now.ToString("HH:mm:ss:fff"), value);
         }
 
         this.Length += value.Length * 2;
+    }
+
+    public void Write(string condition, string stackTrace, LogType type)
+    {
+        string content = stackTrace;
+        if (type != LogType.Error)
+        {
+            string[] s = stackTrace.Split('\n');
+            if (s.Length >= 2)
+            {
+                content = s[1];
+            }
+        }
+        
+        Write(string.Format("[{0:D2}:{1:D2}:{2:D2}:{3:D3}] {4}\t{5}\n{6}\n",
+                   DateTime.Now.Hour, DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond
+                   , ToLogTypeString(type), condition, content));
     }
 
     public void Flush()
