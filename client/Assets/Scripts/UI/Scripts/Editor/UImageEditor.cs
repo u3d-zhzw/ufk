@@ -1,15 +1,12 @@
-﻿using System.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
 using UnityEditor.UI;
-using UnityEditor.AnimatedValues;
-using UnityEngine.UI;
 
 namespace UFK
 {
-    [CustomEditor(typeof(UIImage), true)]
+    [CustomEditor(typeof(UImage), true)]
     [CanEditMultipleObjects]
-    public class UIImageEditor : ImageEditor
+    public class UImageEditor : ImageEditor
     {
         protected SerializedProperty m_HideWhenNoneSprite;
 
