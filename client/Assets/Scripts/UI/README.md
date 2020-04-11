@@ -18,3 +18,6 @@ Sprite
 
 其它
 https://lizijie.github.io/2019/05/23/ugui%E9%9D%9E%E5%B8%B8%E4%B8%8D%E5%8F%8B%E5%A5%BD.html
+
+Button
+1. 增加buttonId，以允许全局监听按钮事件。比强制流程、数据埋点。
