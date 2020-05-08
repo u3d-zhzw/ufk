@@ -21,3 +21,4 @@ https://lizijie.github.io/2019/05/23/ugui%E9%9D%9E%E5%B8%B8%E4%B8%8D%E5%8F%8B%E5
 
 Button
 1. 增加buttonId，以允许全局监听按钮事件。比强制流程、数据埋点。
+2. UNITY_EDITOR环境下，OnClickEvent数量大于0，检查组件是否勾选了raycast target
