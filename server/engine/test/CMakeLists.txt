@@ -4,3 +4,4 @@ PROJECT(test)
 
 ADD_SUBDIRECTORY(TestNetPacket)
 ADD_SUBDIRECTORY(test_raknet)
+ADD_SUBDIRECTORY(test_luajit)
